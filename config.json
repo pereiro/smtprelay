@@ -1,0 +1,22 @@
+{
+  "ServerHostName":"relay.promo.wildberries.ru",
+  "ListenPort":"172.16.2.5:8025",
+  "WelcomeMessage":"SMTP ready",
+  "MaxIncomingConnections":5000,
+  "MaxOutcomingConnections":10,
+  "DKIMEnabled":true,
+  "DKIMKeyDir":"dkim_keys",
+  "TestModeEnabled":true,
+  "TestModeServer":"172.16.253.104:25",
+  "NumCPU":1,
+  "RedisMailQueueName":"MailQ",
+  "RedisErrorQueueName":"ErrorQ",
+  "RedisHost":"localhost",
+  "RedisPort":"6379",
+  "RedisPassword":"",
+  "RedisDB":1,
+  "MQStatisticPort":"8085",
+  "MQQueueBuffer":100,
+  "DeferredMailDelay":30,
+  "DeferredMailMaxErrors":3
+}
