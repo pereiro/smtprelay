@@ -1,7 +1,7 @@
 package main
 
 import (
-	"smtpd"
+	"bitbucket.org/kardianos/smtpd"
     "runtime"
 )
 var(

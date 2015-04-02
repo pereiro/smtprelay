@@ -3,7 +3,7 @@ package main
 import (
     "github.com/adjust/redismq"
     "encoding/json"
-    "smtpd"
+    "bitbucket.org/kardianos/smtpd"
 )
 
 const MAIL_CONSUMER_NAME = "MAIL"

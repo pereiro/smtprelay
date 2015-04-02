@@ -1,13 +1,11 @@
 <component name="libraryTable">
   <library name="GOPATH &lt;relay&gt;">
     <CLASSES>
-      <root url="file://$PROJECT_DIR$/../sd" />
-      <root url="file://$PROJECT_DIR$/../test" />
-      <root url="file://$PROJECT_DIR$/../smtpd" />
+      <root url="file://$PROJECT_DIR$/../ibot" />
       <root url="file://$PROJECT_DIR$/../gopkg.in" />
-      <root url="file://$PROJECT_DIR$/../relay_old" />
+      <root url="file://$PROJECT_DIR$/../.DS_Store" />
       <root url="file://$PROJECT_DIR$/../github.com" />
-      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../bitbucket.org" />
       <root url="file://$PROJECT_DIR$/../code.google.com" />
     </CLASSES>
     <JAVADOC />
