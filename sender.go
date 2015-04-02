@@ -24,14 +24,17 @@ func StartSender(){
 
 func StartErrorHandler(){
 
-    for{
-        err := MultiGetError(MailMQChannel)
-        if err != nil {
-            log.Error("error reading msg from Error MQ:%s", err.Error())
-            time.Sleep(1000 * time.Millisecond)
-        }
-        if ErrorQueue.Length()<int64(conf.MQQueueBuffer){
-            time.Sleep(time.Duration(conf.DeferredMailDelay)*time.Second)
+    for {
+        time.Sleep(time.Duration(conf.DeferredMailDelay)*time.Second)
+        for {
+            err := MultiGetError(MailMQChannel)
+            if err != nil {
+                log.Error("error reading msg from Error MQ:%s", err.Error())
+                time.Sleep(1000 * time.Millisecond)
+            }
+            if ErrorQueue.Length()<int64(conf.MQQueueBuffer) {
+                break
+            }
         }
     }
 }
