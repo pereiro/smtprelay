@@ -46,19 +46,6 @@ func DKIMLoadKeyRepository() error{
             log.Warn("can't read key data from %s:%s",conf.DKIMKeyDir+string(sep)+keyFile.Name(),err.Error())
             break
         }
-        key.dkimConf,err = dkim.NewConf(key.Domain, key.Selector)
-        if err != nil {
-            log.Error("DKIM configuration error: %v", err)
-            break
-        }
-
-        d, err := dkim.New(key.dkimConf, key.Data)
-        if err != nil {
-            log.Error("DKIM error: %v", err)
-            break
-        }
-        key.dkim = *d
-
             DKIMRepo[key.Domain] = key;
 
         keyCount++;
@@ -94,6 +81,19 @@ func DKIMSign(data []byte,domain string) ([]byte,error){
         return data,errors.New("no key in keyrepo")
     }
 
+    privKey.dkimConf,err = dkim.NewConf(privKey.Domain, privKey.Selector)
+    if err != nil {
+        log.Error("DKIM configuration error: %v", err)
+        break
+    }
+
+    d, err := dkim.New(privKey.dkimConf, privKey.Data)
+    if err != nil {
+        log.Error("DKIM error: %v", err)
+        break
+    }
+    privKey.dkim = *d
+
    //log.Debug("Domain - %s\nSelector-%s\nData-%s",privKey.Domain,privKey.Selector,privKey.Data)
     //log.Debug("Mail data - %s",bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 
@@ -108,6 +108,7 @@ func DKIMSign(data []byte,domain string) ([]byte,error){
 //        log.Error("DKIM error: %v", err)
 //        return data,err
 //    }
+
 
     signeddata, err := privKey.dkim.Sign(bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
     if err != nil {
