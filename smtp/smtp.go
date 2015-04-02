@@ -270,12 +270,13 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // possible, authenticates with the optional mechanism a if possible,
 // and then sends an email from address from, to addresses to, with
 // message msg.
-func SendMail(addr string, a Auth, from string, to []string, msg []byte) error {
+func SendMail(addr string, a Auth, from string, to []string, msg []byte, host string) error {
 	c, err := Dial(addr)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
+    c.localName = host
 	if err = c.hello(); err != nil {
 		return err
 	}

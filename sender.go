@@ -70,7 +70,7 @@ func SendMail(entry QueueEntry){
     entry.Sender,
     entry.Recipients,
     data,
-    );err!=nil{
+    conf.ServerHostName); err!=nil{
         smtpError:=ParseOutcomingError(err.Error())
         if(smtpError.Code/100==5){
             log.Error("msg %s DROPPED: %s",entry.String(),smtpError.Error())
