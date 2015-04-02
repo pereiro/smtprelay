@@ -1,5 +1,6 @@
 package main
-import ("relay/smtp"
+import (
+    "relay/smtp"
     "time"
     "github.com/adjust/redismq"
 )
