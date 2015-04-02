@@ -2,7 +2,7 @@ package main
 import (
     "relay/smtp"
     "time"
-    "github.com/adjust/redismq"
+    "relay/redismq"
 )
 
 var(

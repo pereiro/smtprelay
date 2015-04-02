@@ -1,7 +1,7 @@
 package main
 
 import (
-    "github.com/adjust/redismq"
+    "relay/redismq"
     "encoding/json"
     "relay/smtpd"
 )
@@ -152,5 +152,8 @@ func MultiGet(ch chan QueueEntry,q MQ,c MQConsumer) (err error){
     return nil
 }
 
+func GetQueueLength(q MQ) int{
+
+}
 
 
