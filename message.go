@@ -25,7 +25,7 @@ func (msg *Msg) String() string{
     for _,s := range msg.Rcpt{
         rcpt += s.Address+";"
     }
-    return fmt.Sprintf("(message-id:%S;from:%s;to:%s)",msg.MessageId,msg.Sender.Address,rcpt)
+    return fmt.Sprintf("(message-id:%s;from:%s;to:%s)",msg.MessageId,msg.Sender.Address,rcpt)
 }
 
 

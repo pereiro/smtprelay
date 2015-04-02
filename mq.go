@@ -31,7 +31,7 @@ type QueueEntry struct{
 }
 
 func (e *QueueEntry) String() string{
-    return fmt.Sprintf("(message-id:%S;from:%s;to:%s)",e.MessageId,e.Sender,strings.Join(e.Recipients,";"))
+    return fmt.Sprintf("(message-id:%s;from:%s;to:%s)",e.MessageId,e.Sender,strings.Join(e.Recipients,";"))
 }
 
 func InitQueues() error {
