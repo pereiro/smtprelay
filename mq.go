@@ -4,6 +4,8 @@ import (
     "relay/redismq"
     "encoding/json"
     "relay/smtpd"
+    "fmt"
+    "strings"
 )
 
 const MAIL_CONSUMER_NAME = "MAIL"
@@ -22,9 +24,14 @@ type QueueEntry struct{
     Sender string
     Recipients []string
     SenderDomain string
+    MessageId string
     Data []byte
     Error smtpd.Error
     ErrorCount int
+}
+
+func (e *QueueEntry) String() string{
+    return fmt.Sprintf("(message-id:%S;from:%s;to:%s)",e.MessageId,e.Sender,strings.Join(e.Recipients,";"))
 }
 
 func InitQueues() error {
@@ -76,9 +83,6 @@ func GetError() (QueueEntry, error){
 func MultiGetError(ch chan QueueEntry) error{
     return MultiGet(ch,ErrorQueue,ErrorConsumer)
 }
-
-
-
 
 func Put(entry QueueEntry,q *redismq.BufferedQueue) error {
     json,err:=json.Marshal(entry)
@@ -138,10 +142,9 @@ func MultiGet(ch chan QueueEntry,q *redismq.BufferedQueue,c *redismq.Consumer) (
         if err != nil {
             return
         }
-
     }
-
     return nil
 }
+
 
 

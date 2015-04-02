@@ -4,6 +4,7 @@ import (
 	"relay/smtpd"
     "runtime"
 )
+
 var(
     conf *Conf
 )
@@ -69,20 +70,23 @@ func main() {
 }
 
 func handler(peer smtpd.Peer, env smtpd.Envelope) error {
-    //Processing only marketing emails with 1 recipient
-    if(len(env.Recipients)>1 || len(env.Recipients)==0){
-        log.Error("message dropped, rcpt count limited to 1: %s",ErrTooManyRecipients.Error())
-        return ErrTooManyRecipients
-    }
+    //#TODO Few recipients
+
+
     msg,err:= ParseMessage(env.Recipients,env.Sender,env.Data)
     if err != nil {
-        log.Error("message dropped - %s: %s",err,ErrMessageError.Error())
+        log.Error("incorrect msg DROPPED - %s: %s",err,ErrMessageError.Error())
         return ErrMessageError
+    }
+
+    if(len(env.Recipients)>1 || len(env.Recipients)==0){
+        log.Error("message %s DROPPED, rcpt count limited to 1: %s",msg.String(),ErrTooManyRecipients.Error())
+        return ErrTooManyRecipients
     }
 
     mailServer,err:=lookupMailServer(msg.Rcpt[0].Domain)
     if err!=nil{
-        log.Error("message dropped, can't get MX record for %s: %s",msg.Rcpt[0].Domain,ErrDomainNotFound.Error())
+        log.Error("message %s DROPPED, can't get MX record for %s: %s",msg.String(),msg.Rcpt[0].Domain,ErrDomainNotFound.Error())
         return ErrDomainNotFound
     }
 
@@ -90,16 +94,17 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
         mailServer = conf.TestModeServer
     }
 
-    entry := QueueEntry{MailServer:mailServer,Sender:env.Sender,Recipients:env.Recipients,Data:env.Data,SenderDomain:msg.Sender.Domain}
+    entry := QueueEntry{MailServer:mailServer,Sender:env.Sender,Recipients:env.Recipients,Data:env.Data,SenderDomain:msg.Sender.Domain,MessageId:msg.MessageId}
 
     select {
         case MailMQChannel <- entry:
         default:
             err = PutMail(entry)
             if err != nil {
-                log.Error("error writing msg in MQ - %s: %s",err.Error(),ErrServerError.Error())
+                log.Error("msg %s DROPPED, MQ error - %s: %s",msg.String(),err.Error(),ErrServerError.Error())
                 return ErrServerError
             }
+            log.Info("msg %s QUEUED",msg.String())
     }
 
     return nil

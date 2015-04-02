@@ -73,24 +73,23 @@ func SendMail(entry QueueEntry){
     );err!=nil{
         smtpError:=ParseOutcomingError(err.Error())
         if(smtpError.Code/100==5){
-            log.Error("msg DROPPED from %s to %s(%s): %s", entry.Sender,entry.Recipients[0],entry.MailServer,smtpError.Error())
+            log.Error("msg %s DROPPED: %s",entry.String(),smtpError.Error())
             return
         }else {
             entry.ErrorCount += 1
             entry.Error = smtpError
-            if (entry.ErrorCount>conf.DeferredMailMaxErrors){
-                log.Error("msg DROPPED defer count=(%d/%d) from %s to %s(%s): %s",
-                    entry.ErrorCount,conf.DeferredMailMaxErrors,entry.Sender, entry.Recipients[0], entry.MailServer, smtpError.Error())
+            if (entry.ErrorCount>=conf.DeferredMailMaxErrors){
+                log.Error("msg %s DROPPED defer limit =(%d/%d):%s",entry.String(),entry.ErrorCount,conf.DeferredMailMaxErrors,smtpError.Error())
                 return
             }
             err:=PutError(entry)
             if err != nil {
-                log.Error("can't DEFER msg from %s to %s(%s), msg DROPPED: %s", entry.Sender, entry.Recipients[0], entry.MailServer, smtpError.Error())
+                log.Error("msg %s DROPPED, can't defer cause of %s: %s", entry.String(),err.Error(),smtpError.Error())
             }
-            log.Error("msg DEFERRED (%d/%d) from %s to %s(%s): %s",entry.ErrorCount,conf.DeferredMailMaxErrors,entry.Sender, entry.Recipients[0], entry.MailServer, smtpError.Error())
+            log.Error("msg %s DEFERRED (%d/%d): %s",entry.String(),entry.ErrorCount,conf.DeferredMailMaxErrors, smtpError.Error())
         }
     }else{
-        log.Info("msg from %s to %s(%s): %s",entry.Sender,entry.Recipients[0],entry.MailServer,ErrStatusSuccess.Error())
+        log.Info("msg %s SENT: %s",entry.String(),ErrStatusSuccess.Error())
     }
 
 }

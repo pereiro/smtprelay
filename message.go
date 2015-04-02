@@ -4,6 +4,7 @@ import (
     "errors"
     "net/mail"
     "bytes"
+    "fmt"
 )
 
 type EmailAddress struct {
@@ -15,8 +16,18 @@ type EmailAddress struct {
 type Msg struct {
     Rcpt [] EmailAddress
     Sender  EmailAddress
+    MessageId string
     Message *mail.Message
 }
+
+func (msg *Msg) String() string{
+    var rcpt string
+    for _,s := range msg.Rcpt{
+        rcpt += s.Address+";"
+    }
+    return fmt.Sprintf("(message-id:%S;from:%s;to:%s)",msg.MessageId,msg.Sender.Address,rcpt)
+}
+
 
 func ParseDomain(addr string) (domain string,err error){
     var parts = strings.Split(addr,"@")
@@ -43,6 +54,12 @@ func ParseMessage(recipients []string,sender string,data []byte) (msg Msg,err er
     if err != nil {
         return msg,err
     }
+
+    msg.MessageId = msg.Message.Header.Get("message-id")
+    if msg.MessageId == "" {
+        msg.MessageId = "NOTFOUND"
+    }
+
     return msg,nil
 }
 

@@ -65,10 +65,20 @@ func ParseOutcomingError(str string) (se smtpd.Error){
     if len(str)<3 {
         return ErrMessageErrorUnknown
     }
-    code := str[0:2]
+    parts := strings.SplitN(str," ",2)
+    var code string
+    var msg string
+    if l:=len(parts);l>0 {
+        code=parts[0]
+        if l>1 {
+            msg=parts[1]
+        }
+    }else{
+        return smtpd.Error{Code:450,Message:str}
+    }
     intCode,err:=strconv.Atoi(code)
     if err != nil {
         return smtpd.Error{Code:450,Message:str}
     }
-    return smtpd.Error{Code:intCode,Message:str[3:]}
+    return smtpd.Error{Code:intCode,Message:msg}
 }
