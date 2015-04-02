@@ -84,13 +84,13 @@ func DKIMSign(data []byte,domain string) ([]byte,error){
     privKey.dkimConf,err = dkim.NewConf(privKey.Domain, privKey.Selector)
     if err != nil {
         log.Error("DKIM configuration error: %v", err)
-        break
+        return data,errors.New("DKIM configuration error")
     }
 
     d, err := dkim.New(privKey.dkimConf, privKey.Data)
     if err != nil {
         log.Error("DKIM error: %v", err)
-        break
+        return data,errors.New("DKIM error")
     }
     privKey.dkim = *d
 
