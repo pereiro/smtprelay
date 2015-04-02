@@ -2,6 +2,7 @@ package main
 import (
     "relay/smtpd"
     "strconv"
+    "strings"
 )
 
 
@@ -60,6 +61,7 @@ var (
 )
 
 func ParseOutcomingError(str string) (se smtpd.Error){
+    str = strings.TrimSpace(str)
     if len(str)<3 {
         return ErrMessageErrorUnknown
     }
