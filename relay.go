@@ -86,7 +86,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 
     mailServer,err:=lookupMailServer(msg.Rcpt[0].Domain)
     if err!=nil{
-        log.Error("message %s DROPPED, can't get MX record for %s: %s",msg.String(),msg.Rcpt[0].Domain,ErrDomainNotFound.Error())
+        log.Error("message %s DROPPED, can't get MX record for %s - %s: %s",msg.String(),msg.Rcpt[0].Domain,err.Error(),ErrDomainNotFound.Error())
         return ErrDomainNotFound
     }
 
