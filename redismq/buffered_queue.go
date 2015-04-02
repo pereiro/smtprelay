@@ -128,3 +128,7 @@ func (queue *BufferedQueue) startHeartbeat() {
 	<-firstWrite
 	return
 }
+
+func (queue *BufferedQueue) Length() int64 {
+    return queue.redisClient.LLen(queueInputKey(queue.Name)).Val()
+}

@@ -7,7 +7,6 @@ import (
 
 var(
     MailMQChannel chan QueueEntry
-    Observer *redismq.Observer
 )
 
 func StartSender(){
@@ -24,16 +23,15 @@ func StartSender(){
 }
 
 func StartErrorHandler(){
-    Observer = redismq.NewObserver(conf.RedisHost,conf.RedisPort,conf.RedisPassword,conf.RedisDB)
+
     for{
         err := MultiGetError(MailMQChannel)
         if err != nil {
             log.Error("error reading msg from Error MQ:%s", err.Error())
             time.Sleep(1000 * time.Millisecond)
         }
-        Observer.UpdateAllStats()
-        if Observer.Stats[conf.RedisErrorQueueName].InputSizeSecond<int64(conf.MQQueueBuffer) {
-            time.Sleep(time.Duration(conf.DeferredMailDelay) * time.Second)
+        if ErrorQueue.Length()<int64(conf.MQQueueBuffer){
+            time.Sleep(time.Duration(conf.DeferredMailDelay)*time.Second)
         }
     }
 }

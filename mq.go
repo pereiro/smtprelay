@@ -9,20 +9,12 @@ import (
 const MAIL_CONSUMER_NAME = "MAIL"
 const ERROR_CONSUMER_NAME = "ERROR"
 
-type MQ struct{
-    *redismq.BufferedQueue
-}
-
-type MQConsumer struct {
-    *redismq.Consumer
-}
-
 var (
     StatisticServer *redismq.Server
-    MailQueue MQ
-    MailConsumer MQConsumer
-    ErrorQueue MQ
-    ErrorConsumer MQConsumer
+    MailQueue *redismq.BufferedQueue
+    MailConsumer *redismq.Consumer
+    ErrorQueue *redismq.BufferedQueue
+    ErrorConsumer *redismq.Consumer
 )
 
 type QueueEntry struct{
@@ -37,21 +29,21 @@ type QueueEntry struct{
 
 func InitQueues() error {
     var err error
-        MailQueue.BufferedQueue, err = redismq.SelectBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisMailQueueName,conf.MQQueueBuffer)
+        MailQueue, err = redismq.SelectBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisMailQueueName,conf.MQQueueBuffer)
         if err != nil {
-            MailQueue.BufferedQueue = redismq.CreateBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisMailQueueName,conf.MQQueueBuffer)
+            MailQueue = redismq.CreateBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisMailQueueName,conf.MQQueueBuffer)
         }
-        MailConsumer.Consumer, err = MailQueue.AddConsumer(MAIL_CONSUMER_NAME)
+        MailConsumer, err = MailQueue.AddConsumer(MAIL_CONSUMER_NAME)
         err = MailQueue.Start()
         if err != nil {
             return err
         }
 
-        ErrorQueue.BufferedQueue, err = redismq.SelectBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisErrorQueueName,conf.MQQueueBuffer)
+        ErrorQueue, err = redismq.SelectBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisErrorQueueName,conf.MQQueueBuffer)
         if err != nil {
-            ErrorQueue.BufferedQueue = redismq.CreateBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisErrorQueueName,conf.MQQueueBuffer)
+            ErrorQueue = redismq.CreateBufferedQueue(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.RedisErrorQueueName,conf.MQQueueBuffer)
         }
-        ErrorConsumer.Consumer, err = ErrorQueue.AddConsumer(ERROR_CONSUMER_NAME)
+        ErrorConsumer, err = ErrorQueue.AddConsumer(ERROR_CONSUMER_NAME)
         err = ErrorQueue.Start()
         if err != nil {
             return err
@@ -88,7 +80,7 @@ func MultiGetError(ch chan QueueEntry) error{
 
 
 
-func Put(entry QueueEntry,q MQ) error {
+func Put(entry QueueEntry,q *redismq.BufferedQueue) error {
     json,err:=json.Marshal(entry)
     if err != nil {
         return err
@@ -96,7 +88,7 @@ func Put(entry QueueEntry,q MQ) error {
         return q.Put(string(json))
 }
 
-func Get(q MQ,c MQConsumer) (entry QueueEntry, err error){
+func Get(q *redismq.BufferedQueue,c *redismq.Consumer) (entry QueueEntry, err error){
     var pkg *redismq.Package
     if c.HasUnacked(){
         pkg, err = c.GetUnacked()
@@ -120,7 +112,7 @@ func Get(q MQ,c MQConsumer) (entry QueueEntry, err error){
     return entry,nil
 }
 
-func MultiGet(ch chan QueueEntry,q MQ,c MQConsumer) (err error){
+func MultiGet(ch chan QueueEntry,q *redismq.BufferedQueue,c *redismq.Consumer) (err error){
     var pkgs []*redismq.Package
     var entry QueueEntry
     if c.HasUnacked(){
@@ -150,10 +142,6 @@ func MultiGet(ch chan QueueEntry,q MQ,c MQConsumer) (err error){
     }
 
     return nil
-}
-
-func GetQueueLength(q MQ) int{
-
 }
 
 
