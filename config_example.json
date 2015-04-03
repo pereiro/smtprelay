@@ -6,8 +6,8 @@
   "MaxOutcomingConnections":10,
   "DKIMEnabled":true,
   "DKIMKeyDir":"dkim_keys",
-  "TestModeEnabled":true,
-  "TestModeServer":"172.16.253.104:25",
+  "RelayModeEnabled":true,
+  "RelayServer":"172.16.253.104:25",
   "NumCPU":1,
   "RedisMailQueueName":"MailQ",
   "RedisErrorQueueName":"ErrorQ",
@@ -18,5 +18,6 @@
   "MQStatisticPort":"8085",
   "MQQueueBuffer":100,
   "DeferredMailDelay":30,
-  "DeferredMailMaxErrors":3
+  "DeferredMailMaxErrors":3,
+  "MaxRecipients":5
 }

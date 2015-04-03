@@ -17,8 +17,8 @@ type Conf struct {
     MaxOutcomingConnections int
     DKIMEnabled bool
     DKIMKeyDir string
-    TestModeEnabled bool
-    TestModeServer string
+    RelayModeEnabled bool
+    RelayServer string
     NumCPU  int
     RedisMailQueueName string
     RedisErrorQueueName string
@@ -30,6 +30,7 @@ type Conf struct {
     MQQueueBuffer int
     DeferredMailDelay int
     DeferredMailMaxErrors int
+    MaxRecipients int
 
 }
 
