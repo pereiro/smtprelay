@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 )
 
-const CONFIG_FILE string = "config.json"
-
 var Config Conf
 
 type Conf struct {
@@ -34,8 +32,8 @@ type Conf struct {
 
 }
 
-func (cf *Conf) Load() error {
-	file, err := ioutil.ReadFile(CONFIG_FILE)
+func (cf *Conf) Load(filename string) error {
+	file, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Error("file error:%s\n", err)
 		return err

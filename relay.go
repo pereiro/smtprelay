@@ -3,6 +3,7 @@ package main
 import (
 	"relay/smtpd"
     "runtime"
+    "flag"
 )
 
 var(
@@ -10,10 +11,16 @@ var(
 )
 
 func main() {
-    InitLogger()
+
+    var logConfigFile = flag.String("logconfig","/usr/local/relay/logconfig.xml","enter path to file with log settings. Default:/usr/local/relay/logconfig.xml")
+    var mainConfigFile = flag.String("config","/usr/local/relay/config.json","enter path to file with log settings. Default:/usr/local/relay/config.json")
+
+    flag.Parse()
+
+    InitLogger(logConfigFile)
     log.Info("Starting..")
     conf=new(Conf)
-    if err:=conf.Load();err!=nil{
+    if err:=conf.Load(mainConfigFile);err!=nil{
         log.Critical("can't load config,shut down:",err.Error())
         panic(err.Error())
     }
