@@ -38,8 +38,8 @@ func main() {
         log.Info("DKIM disabled")
     }
 
-    if conf.TestModeEnabled {
-        log.Info("TEST MODE ENABLED!! All messages will be redirected to %s",conf.TestModeServer)
+    if conf.RelayModeEnabled {
+        log.Info("TEST MODE ENABLED!! All messages will be redirected to %s",conf.RelayServer)
     }
     log.Info("Incoming connections limit - %d",conf.MaxIncomingConnections)
     log.Info("Outcoming connections limit - %d",conf.MaxOutcomingConnections)
@@ -48,7 +48,7 @@ func main() {
         Hostname: conf.ServerHostName,
 		WelcomeMessage: conf.WelcomeMessage,
 		MaxConnections:conf.MaxIncomingConnections,
-        Handler:        handler,
+        Handler:        handlerPanicProcessor(handler),
 	}
 
 
@@ -69,9 +69,21 @@ func main() {
 
 }
 
+func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) error) func(peer smtpd.Peer, env smtpd.Envelope) error{
+   return func(peer smtpd.Peer, env smtpd.Envelope) (err error){
+       defer func(){
+           if r:=recover();r!=nil{
+               log.Critical("PANIC, message DROPPED:%s",r)
+               err = ErrMessageErrorUnknown
+           }
+       }()
+       return handler(peer,env)
+   }
+}
+
+
 func handler(peer smtpd.Peer, env smtpd.Envelope) error {
     //#TODO Few recipients
-
 
     msg,err:= ParseMessage(env.Recipients,env.Sender,env.Data)
     if err != nil {
@@ -90,8 +102,8 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
         return ErrDomainNotFound
     }
 
-    if conf.TestModeEnabled {
-        mailServer = conf.TestModeServer
+    if conf.RelayModeEnabled {
+        mailServer = conf.RelayServer
     }
 
     entry := QueueEntry{MailServer:mailServer,Sender:env.Sender,Recipients:env.Recipients,Data:env.Data,SenderDomain:msg.Sender.Domain,MessageId:msg.MessageId}
