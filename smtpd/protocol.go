@@ -151,6 +151,11 @@ func (session *session) handleMAIL(cmd command) {
 		return
 	}
 
+    if len(cmd.params)<2{
+        session.reply(502, "Ill-formatted e-mail address")
+        return
+    }
+
 	addr, err := parseAddress(cmd.params[1])
 
 	if err != nil {
@@ -185,6 +190,11 @@ func (session *session) handleRCPT(cmd command) {
 		session.reply(452, "Too many recipients")
 		return
 	}
+
+    if len(cmd.params)<2{
+        session.reply(502, "Ill-formatted e-mail address")
+        return
+    }
 
 	addr, err := parseAddress(cmd.params[1])
 
