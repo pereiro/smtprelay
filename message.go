@@ -8,6 +8,7 @@ import (
 )
 
 type EmailAddress struct {
+    RawAddress string
     Address string
     Alias string
     Domain string
@@ -16,6 +17,7 @@ type EmailAddress struct {
 type Msg struct {
     Rcpt [] EmailAddress
     Sender  EmailAddress
+    RcptDomains map[string]int
     MessageId string
     Message *mail.Message
 }
@@ -60,6 +62,10 @@ func ParseMessage(recipients []string,sender string,data []byte) (msg Msg,err er
         msg.MessageId = "NOTFOUND"
     }
 
+    msg.RcptDomains = make(map[string]int)
+    for _,d:=range msg.Rcpt{
+        msg.RcptDomains[d.Domain] = msg.RcptDomains[d.Domain] + 1
+    }
     return msg,nil
 }
 
@@ -68,6 +74,7 @@ func ParseAddress(rawAddress string) (address EmailAddress,err error){
     if err!=nil{
         return address,err
     }
+    address.RawAddress = rawAddress
     address.Address = addr.Address
     address.Alias = addr.Name
     address.Domain,err = ParseDomain(address.Address)
@@ -75,4 +82,13 @@ func ParseAddress(rawAddress string) (address EmailAddress,err error){
         return address,err
     }
     return address,nil
+}
+
+func (msg *Msg) GetDomainRecipientList(domain string) (recipients []string){
+    for _,rcpt := range msg.Rcpt{
+        if strings.EqualFold(domain,rcpt.Domain) {
+            recipients = append(recipients, rcpt.RawAddress)
+        }
+    }
+    return
 }

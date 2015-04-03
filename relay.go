@@ -83,7 +83,6 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 
 
 func handler(peer smtpd.Peer, env smtpd.Envelope) error {
-    //#TODO Few recipients
 
     msg,err:= ParseMessage(env.Recipients,env.Sender,env.Data)
     if err != nil {
@@ -91,34 +90,44 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
         return ErrMessageError
     }
 
-    if(len(env.Recipients)>1 || len(env.Recipients)==0){
-        log.Error("message %s DROPPED, rcpt count limited to 1: %s",msg.String(),ErrTooManyRecipients.Error())
+    if(len(env.Recipients)>conf.MaxRecipients || len(env.Recipients)==0){
+        log.Error("message %s DROPPED, rcpt count limited to %d: %s",msg.String(),conf.MaxRecipients,ErrTooManyRecipients.Error())
         return ErrTooManyRecipients
     }
 
-    mailServer,err:=lookupMailServer(msg.Rcpt[0].Domain)
-    if err!=nil{
-        log.Error("message %s DROPPED, can't get MX record for %s - %s: %s",msg.String(),msg.Rcpt[0].Domain,err.Error(),ErrDomainNotFound.Error())
-        return ErrDomainNotFound
+    var entries []QueueEntry
+
+    for domain,_:=range msg.RcptDomains {
+
+        mailServer, err := lookupMailServer(domain)
+        if err!=nil {
+            log.Error("message %s DROPPED, can't get MX record for %s - %s: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+            return ErrDomainNotFound
+        }
+
+        if conf.RelayModeEnabled {
+            mailServer = conf.RelayServer
+        }
+
+        entries = append(entries,QueueEntry{MailServer:mailServer,
+                                           Sender:env.Sender,
+                                           Recipients:msg.GetDomainRecipientList(domain),
+                                           Data:env.Data,
+                                           SenderDomain:msg.Sender.Domain,
+                                           MessageId:msg.MessageId})
     }
-
-    if conf.RelayModeEnabled {
-        mailServer = conf.RelayServer
-    }
-
-    entry := QueueEntry{MailServer:mailServer,Sender:env.Sender,Recipients:env.Recipients,Data:env.Data,SenderDomain:msg.Sender.Domain,MessageId:msg.MessageId}
-
-    select {
+    for _,entry := range entries {
+        select {
         case MailMQChannel <- entry:
         default:
             err = PutMail(entry)
             if err != nil {
-                log.Error("msg %s DROPPED, MQ error - %s: %s",msg.String(),err.Error(),ErrServerError.Error())
+                log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
                 return ErrServerError
             }
-            log.Info("msg %s QUEUED",msg.String())
+            log.Info("msg %s QUEUED", msg.String())
+        }
     }
-
     return nil
 
 }
