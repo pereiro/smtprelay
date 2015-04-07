@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# REQUIRE: LOGIN
+
+. /etc/rc.subr
+
+name=smtprelay
+rcvar="smtprelay_enable"
+command=/usr/sbin/smtprelay
+start_cmd="/usr/sbin/daemon -u root $command &"
+relay_pidfile="/usr/local/etc/smtprelay/smtprelay.pid"
+
+load_rc_config $name
+run_rc_command "$1"
