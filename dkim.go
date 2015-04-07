@@ -77,7 +77,7 @@ func DKIMSign(data []byte,domain string) ([]byte,error){
     var err error
     privKey := DKIMRepo[domain]
     if len(privKey.Domain)==0 {
-        log.Error("no key for %s in keyrepo",domain)
+        //log.Error("no key for %s in keyrepo",domain)
         return data,errors.New("no key in keyrepo")
     }
 

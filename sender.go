@@ -54,11 +54,13 @@ func CloneMailers(){
 func SendMail(entry QueueEntry){
     var err error
     var data []byte
+    var signed = ""
     if(conf.DKIMEnabled) {
         data,err = DKIMSign(entry.Data,entry.SenderDomain)
         if err != nil {
-            log.Warn("can't sign msg:%s",err.Error())
+            //log.Warn("can't sign msg:%s",err.Error())
             data = entry.Data
+            signed = "(NOT SIGNED)"
         }
     }else{
         data = entry.Data
@@ -89,7 +91,7 @@ func SendMail(entry QueueEntry){
             log.Error("msg %s DEFERRED (%d/%d): %s",entry.String(),entry.ErrorCount,conf.DeferredMailMaxErrors, smtpError.Error())
         }
     }else{
-        log.Info("msg %s SENT: %s",entry.String(),ErrStatusSuccess.Error())
+        log.Info("msg %s SENT%s: %s",entry.String(),signed,ErrStatusSuccess.Error())
     }
 
 }
