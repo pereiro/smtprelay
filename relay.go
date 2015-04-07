@@ -93,7 +93,7 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 func handler(peer smtpd.Peer, env smtpd.Envelope) error {
     msg,err:= ParseMessage(env.Recipients,env.Sender,env.Data)
     if err != nil {
-        log.Error("incorrect msg DROPPED - %s: %s",err,ErrMessageError.Error())
+        log.Error("incorrect msg DROPPED from %s - %s: %s",peer.Addr.String(),err,ErrMessageError.Error())
         return ErrMessageError
     }
 
