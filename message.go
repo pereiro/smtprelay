@@ -5,6 +5,7 @@ import (
     "net/mail"
     "bytes"
     "fmt"
+    "github.com/twinj/uuid"
 )
 
 type EmailAddress struct {
@@ -60,7 +61,8 @@ func ParseMessage(recipients []string,sender string,data []byte) (msg Msg,err er
 
     msg.MessageId = msg.Message.Header.Get("message-id")
     if msg.MessageId == "" {
-        msg.MessageId = "NOTFOUND"
+        id:=uuid.NewV4()
+        msg.MessageId = id.String()
     }
 
     msg.RcptDomains = make(map[string]int)
