@@ -1,8 +1,8 @@
 package main
 
 import (
-	"relay/redismq"
-	"relay/smtp"
+	"smtprelay/redismq"
+	"smtprelay/smtp"
 	"time"
 )
 
