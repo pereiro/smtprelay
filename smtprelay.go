@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"relay/smtpd"
+	"smtprelay/smtpd"
 	"runtime"
 	"strings"
 )

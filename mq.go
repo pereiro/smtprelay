@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"relay/redismq"
-	"relay/smtpd"
+	"smtprelay/redismq"
+	"smtprelay/smtpd"
 	"strings"
 )
 

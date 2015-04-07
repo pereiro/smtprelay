@@ -2,7 +2,7 @@ package main
 
 import (
 	"reflect"
-	"relay/smtpd"
+	"smtprelay/smtpd"
 	"testing"
 )
 

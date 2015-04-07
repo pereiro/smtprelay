@@ -1,7 +1,7 @@
 package main
 
 import (
-	"relay/smtpd"
+	"smtprelay/smtpd"
 	"strconv"
 	"strings"
 )
