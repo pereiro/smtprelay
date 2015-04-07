@@ -8,28 +8,27 @@ import (
 var Config Conf
 
 type Conf struct {
-    ServerHostName string
-	ListenPort     string
-	WelcomeMessage string
-    MaxIncomingConnections int
-    MaxOutcomingConnections int
-    DKIMEnabled bool
-    DKIMKeyDir string
-    RelayModeEnabled bool
-    RelayServer string
-    NumCPU  int
-    RedisMailQueueName string
-    RedisErrorQueueName string
-    RedisHost string
-    RedisPort string
-    RedisPassword string
-    RedisDB int64
-    MQStatisticPort string
-    MQQueueBuffer int
-    DeferredMailDelay int
-    DeferredMailMaxErrors int
-    MaxRecipients int
-
+	ServerHostName          string
+	ListenPort              string
+	WelcomeMessage          string
+	MaxIncomingConnections  int
+	MaxOutcomingConnections int
+	DKIMEnabled             bool
+	DKIMKeyDir              string
+	RelayModeEnabled        bool
+	RelayServer             string
+	NumCPU                  int
+	RedisMailQueueName      string
+	RedisErrorQueueName     string
+	RedisHost               string
+	RedisPort               string
+	RedisPassword           string
+	RedisDB                 int64
+	MQStatisticPort         string
+	MQQueueBuffer           int
+	DeferredMailDelay       int
+	DeferredMailMaxErrors   int
+	MaxRecipients           int
 }
 
 func (cf *Conf) Load(filename string) error {
@@ -58,6 +57,5 @@ func (cf *Conf) Save(filename string) error {
 		log.Error("file error")
 		return err
 	}
-    return nil
+	return nil
 }
-
