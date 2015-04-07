@@ -62,6 +62,7 @@ func ParseMessage(recipients []string,sender string,data []byte) (msg Msg,err er
     msg.MessageId = msg.Message.Header.Get("message-id")
     if msg.MessageId == "" {
         id:=uuid.NewV4()
+        uuid.SwitchFormat(uuid.Clean)
         msg.MessageId = id.String()
     }
 
