@@ -118,7 +118,8 @@ func Get(q *redismq.BufferedQueue,c *redismq.Consumer) (entry QueueEntry, err er
 
 func MultiGet(ch chan QueueEntry,q *redismq.BufferedQueue,c *redismq.Consumer) (err error){
     var pkgs []*redismq.Package
-    var entry QueueEntry
+    pkgs = *new([]*redismq.Package)
+    entry := *new(QueueEntry)
     if c.HasUnacked(){
         entry,err = Get(q,c)
         if err != nil {
