@@ -137,6 +137,7 @@ func MultiGet(ch chan QueueEntry,q *redismq.BufferedQueue,c *redismq.Consumer) (
             if err != nil {
                 return
             }
+            log.Info("msg %s UNQUEUED from %s",entry.String(),q.Name)
             ch <- entry
         }
         err = pkgs[len(pkgs)-1].MultiAck()

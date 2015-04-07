@@ -52,6 +52,7 @@ func CloneMailers(){
 }
 
 func SendMail(entry QueueEntry){
+    log.Info("msg %s READY for processing",entry.String())
     var err error
     var data []byte
     var signed = ""
@@ -72,7 +73,8 @@ func SendMail(entry QueueEntry){
     entry.Sender,
     entry.Recipients,
     data,
-    conf.ServerHostName); err!=nil{
+    conf.ServerHostName);
+    err!=nil{
         smtpError:=ParseOutcomingError(err.Error())
         if(smtpError.Code/100==5){
             log.Error("msg %s DROPPED: %s",entry.String(),smtpError.Error())

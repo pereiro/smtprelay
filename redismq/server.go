@@ -30,7 +30,7 @@ func (server *Server) setUpRoutes() {
 func (server *Server) Start() {
 	go func() {
 		server.setUpRoutes()
-		log.Printf("STARTING REDISMQ SERVER ON PORT %s", server.port)
+		//log.Printf("STARTING REDISMQ SERVER ON PORT %s", server.port)
 		err := http.ListenAndServe(":"+server.port, nil)
 		if err != nil {
 			log.Fatalf("REDISMQ SERVER SHUTTING DOWN [%s]\n\n", err.Error())
