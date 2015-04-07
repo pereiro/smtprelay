@@ -1,4 +1,4 @@
 log/*
 dkim_keys/*
-relay
+smtprelay
 .idea/
