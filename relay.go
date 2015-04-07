@@ -4,6 +4,7 @@ import (
 	"relay/smtpd"
     "runtime"
     "flag"
+    "strings"
 )
 
 var(
@@ -90,12 +91,13 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 
 
 func handler(peer smtpd.Peer, env smtpd.Envelope) error {
-
     msg,err:= ParseMessage(env.Recipients,env.Sender,env.Data)
     if err != nil {
         log.Error("incorrect msg DROPPED - %s: %s",err,ErrMessageError.Error())
         return ErrMessageError
     }
+
+    log.Info("msg %s RECEIVED from %s",msg.String(),peer.Addr.String())
 
     if(len(env.Recipients)>conf.MaxRecipients || len(env.Recipients)==0){
         log.Error("message %s DROPPED, rcpt count limited to %d: %s",msg.String(),conf.MaxRecipients,ErrTooManyRecipients.Error())
@@ -106,7 +108,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 
     for domain,_:=range msg.RcptDomains {
 
-        mailServer, err := lookupMailServer(domain)
+        mailServer, err := lookupMailServer(strings.ToLower(domain))
         if err!=nil {
             log.Error("message %s DROPPED, can't get MX record for %s - %s: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
             return ErrDomainNotFound

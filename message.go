@@ -19,7 +19,7 @@ type Msg struct {
     Sender  EmailAddress
     RcptDomains map[string]int
     MessageId string
-    Message *mail.Message
+    Message mail.Message
 }
 
 func (msg *Msg) String() string{
@@ -52,10 +52,11 @@ func ParseMessage(recipients []string,sender string,data []byte) (msg Msg,err er
         }
         msg.Rcpt = append(msg.Rcpt,rcptAddr)
     }
-    msg.Message,err = mail.ReadMessage(bytes.NewReader(data))
+    message,err := mail.ReadMessage(bytes.NewReader(data))
     if err != nil {
         return msg,err
     }
+    msg.Message = *message
 
     msg.MessageId = msg.Message.Header.Get("message-id")
     if msg.MessageId == "" {
