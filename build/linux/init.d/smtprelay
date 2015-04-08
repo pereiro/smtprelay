@@ -1,0 +1,31 @@
+#!/sbin/runscript
+
+RELAY=/usr/bin/smtprelay
+RELAYOPTS=' -logconfig=/etc/smtprelay/logconfig.xml -config=/etc/smtprelay/config.json'
+
+depend() {
+  need net
+  use logger dns
+  provide mta
+}
+
+start() {
+#  if [[ "${RC_CMD}" = "restart" ]];
+#  then
+#    echo "Restarting smtprelay"
+#  fi
+
+  ebegin "Starting smtprelay"
+  start-stop-daemon --start --exec $RELAY \
+    --make-pidfile --user=root --background \
+    --pidfile /etc/smtprelay/smtprelay.pid \
+    --$RELAYOPTS
+  eend $?
+}
+
+stop() {
+  ebegin "Stopping smtprelay"
+  start-stop-daemon --stop --exec /usr/bin/smtprelay \
+    --pidfile /etc/smtprelay/smtprelay.pid
+  eend $?
+}

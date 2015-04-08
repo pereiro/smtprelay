@@ -1,0 +1,24 @@
+<logging>
+    <filter enabled="true">
+        <tag>file</tag>
+        <type>file</type>
+        <level>FINEST</level>
+        <property name="filename">/var/log/smtprelay.log</property>
+        <!--
+           %T - Time (15:04:05 MST)
+           %t - Time (15:04)
+           %D - Date (2006/01/02)
+           %d - Date (01/02/06)
+           %L - Level (FNST, FINE, DEBG, TRAC, WARN, EROR, CRIT)
+           %S - Source
+           %M - Message
+           It ignores unknown format strings (and removes them)
+           Recommended: "[%D %T] [%L] (%S) %M"
+        -->
+        <property name="format">[%D %T] [%L] %M</property>
+        <property name="rotate">true</property> <!-- true enables log rotation, otherwise append -->
+        <property name="maxsize">10G</property> <!-- \d+[KMG]? Suffixes are in terms of 2**10 -->
+        <property name="maxlines">100M</property> <!-- \d+[KMG]? Suffixes are in terms of thousands -->
+        <property name="daily">true</property> <!-- Automatically rotates when a log message is written after midnight -->
+    </filter>
+</logging>

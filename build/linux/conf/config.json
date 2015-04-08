@@ -1,0 +1,23 @@
+{
+  "ServerHostName":"localhost",
+  "ListenPort":"*:25",
+  "WelcomeMessage":"SMTP ready",
+  "MaxIncomingConnections":5000,
+  "MaxOutcomingConnections":10,
+  "DKIMEnabled":true,
+  "DKIMKeyDir":"/etc/smtprelay/dkim_keys",
+  "RelayModeEnabled":false,
+  "RelayServer":"myCoolRelay:25",
+  "NumCPU":1,
+  "RedisMailQueueName":"MailQ",
+  "RedisErrorQueueName":"ErrorQ",
+  "RedisHost":"localhost",
+  "RedisPort":"6379",
+  "RedisPassword":"",
+  "RedisDB":1,
+  "MQStatisticPort":"8085",
+  "MQQueueBuffer":100,
+  "DeferredMailDelay":30,
+  "DeferredMailMaxErrors":3,
+  "MaxRecipients":5
+}
