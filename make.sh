@@ -25,9 +25,13 @@ mkdir $TMPGOPATH/src/$APPNAME
 cp -r redismq $TMPGOPATH/src/$APPNAME/
 cp -r smtp $TMPGOPATH/src/$APPNAME/
 cp -r smtpd $TMPGOPATH/src/$APPNAME/
+echo "Installing golang DKIM package"
 go get "github.com/eaigner/dkim"
+echo "Installing golang UUID package"
 go get "github.com/twinj/uuid"
+echo "Installing golang LOG4GO package"
 go get "code.google.com/p/log4go"
+echo "Installing golang REDIS package"
 go get "gopkg.in/redis.v2"
 mkdir $CWD/build/$SYSTEM/bin
 go build -o $CWD/build/$SYSTEM/bin/$APPNAME -i

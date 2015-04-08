@@ -4,12 +4,12 @@ BINPATH=/usr/local/sbin
 BINNAME=smtprelay
 LOGPATH=/var/log
 LOFILE=smtprelay.log
-RCDIR=/etc/rc.d
+RCPATH=/etc/rc.d
 RCCONF=/etc/rc.conf
 
 
 echo "Installing REDIS"
-pkg install redis > installlog.txt
+pkg install redis
 echo "Redis installed"
 echo "Creating folders and copying files"
 mkdir -p $CONFPATH
@@ -19,7 +19,7 @@ cp -i conf/config.json $CONFPATH/config.json
 cp -i conf/logconfig.xml $CONFPATH/logconfig.xml
 cp -i bin/$BINNAME $BINPATH/$BINNAME
 echo "Adding to rc.d"
-cp rc/$BINNAME $RCPATH/$BINNAME
+cp -i rc/$BINNAME $RCPATH/$BINNAME
 if [ $(grep -c "smtprelay_enable" $RCCONF) -eq 0 ]; then
     echo "smtprelay_enable=YES" >> $RCCONF
 fi
