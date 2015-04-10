@@ -5,7 +5,7 @@
   "MaxIncomingConnections":5000,
   "MaxOutcomingConnections":10,
   "DKIMEnabled":true,
-  "DKIMKeyDir":"/usr/local/etc/smtprelay/dkim_keys",
+  "DKIMKeyDir":"/etc/smtprelay/dkim_keys",
   "RelayModeEnabled":false,
   "RelayServer":"myCoolRelay:25",
   "NumCPU":1,
