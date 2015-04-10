@@ -32,19 +32,19 @@ func DKIMLoadKeyRepository() error {
 	var sep = os.PathSeparator
 	for _, keyFile := range dir {
 		if strings.Contains(keyFile.Name(), KEY_CONFIG_SUFFIX) {
-			break
+			continue
 		}
 
 		key, err := DKIMLoadConfig(conf.DKIMKeyDir + string(sep) + keyFile.Name() + KEY_CONFIG_SUFFIX)
 		if err != nil {
 			log.Warn("can't read key config from %s:%s", conf.DKIMKeyDir+string(sep)+keyFile.Name(), err.Error()+KEY_CONFIG_SUFFIX)
-			break
+			continue
 		}
 
 		key.Data, err = ioutil.ReadFile(conf.DKIMKeyDir + string(sep) + keyFile.Name())
 		if err != nil {
 			log.Warn("can't read key data from %s:%s", conf.DKIMKeyDir+string(sep)+keyFile.Name(), err.Error())
-			break
+			continue
 		}
 		DKIMRepo[key.Domain] = key
 
