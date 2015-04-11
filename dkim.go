@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/eaigner/dkim"
 	"io/ioutil"
 	"os"
 	"strings"
+    "smtprelay/dkim"
 )
 
 const KEY_CONFIG_SUFFIX string = ".config"
@@ -46,6 +46,18 @@ func DKIMLoadKeyRepository() error {
 			log.Warn("can't read key data from %s:%s", conf.DKIMKeyDir+string(sep)+keyFile.Name(), err.Error())
 			continue
 		}
+        key.dkimConf, err = dkim.NewConf(key.Domain, key.Selector)
+        if err != nil {
+            log.Error("DKIM configuration error: %v", err)
+            continue
+        }
+
+        d, err := dkim.New(key.dkimConf, key.Data)
+        if err != nil {
+            log.Error("DKIM error: %v", err)
+            continue
+        }
+        key.dkim = *d
 		DKIMRepo[key.Domain] = key
 
 		keyCount++
@@ -73,39 +85,15 @@ func DKIMLoadConfig(filename string) (keyConfig DKIM, err error) {
 
 func DKIMSign(data []byte, domain string) ([]byte, error) {
 	var err error
-	privKey := DKIMRepo[domain]
+    privKey := DKIMRepo[domain]
 	if len(privKey.Domain) == 0 {
 		//log.Error("no key for %s in keyrepo",domain)
 		return data, errors.New("no key in keyrepo")
 	}
 
-	privKey.dkimConf, err = dkim.NewConf(privKey.Domain, privKey.Selector)
-	if err != nil {
-		log.Error("DKIM configuration error: %v", err)
-		return data, errors.New("DKIM configuration error")
-	}
-
-	d, err := dkim.New(privKey.dkimConf, privKey.Data)
-	if err != nil {
-		log.Error("DKIM error: %v", err)
-		return data, errors.New("DKIM error")
-	}
-	privKey.dkim = *d
-
 	//log.Debug("Domain - %s\nSelector-%s\nData-%s",privKey.Domain,privKey.Selector,privKey.Data)
 	//log.Debug("Mail data - %s",bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 
-	/*    _, err = dkim.New(dkimConf, privKey.Data)
-	      if err != nil {
-	          log.Error("DKIM error: %v", err)
-	          return data,err
-	      }*/
-
-	//    d, err := dkim.New(privKey.dkimConf, privKey.Data)
-	//    if err != nil {
-	//        log.Error("DKIM error: %v", err)
-	//        return data,err
-	//    }
 
 	signeddata, err := privKey.dkim.Sign(bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 	if err != nil {
