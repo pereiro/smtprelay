@@ -87,12 +87,8 @@ func DKIMSign(data []byte, domain string) ([]byte, error) {
 	var err error
     privKey := DKIMRepo[domain]
 	if len(privKey.Domain) == 0 {
-		//log.Error("no key for %s in keyrepo",domain)
 		return data, errors.New("no key in keyrepo")
 	}
-
-	//log.Debug("Domain - %s\nSelector-%s\nData-%s",privKey.Domain,privKey.Selector,privKey.Data)
-	//log.Debug("Mail data - %s",bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 
     privKey.dkim.Conf, err = dkim.NewConf(privKey.Domain, privKey.Selector)
     if err != nil {
