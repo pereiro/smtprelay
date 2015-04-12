@@ -9,8 +9,6 @@ import (
 	"errors"
 	"regexp"
 	"strings"
-    "strconv"
-    "time"
 )
 
 const (
@@ -30,7 +28,7 @@ var StdSignableHeaders = []string{
 
 type DKIM struct {
 	signableHeaders []string
-	conf            Conf
+	Conf            Conf
 	privateKey      *rsa.PrivateKey
 }
 
@@ -44,7 +42,7 @@ func New(conf Conf, keyPEM []byte) (d *DKIM, err error) {
 	}
 	dkim := &DKIM{
 		signableHeaders: StdSignableHeaders,
-		conf:            conf,
+		Conf:            conf,
 	}
 	der, _ := pem.Decode(keyPEM)
 	key, err := x509.ParsePKCS1PrivateKey(der.Bytes)
@@ -62,7 +60,7 @@ var (
 )
 
 func (d *DKIM) canonicalBody(body []byte) []byte {
-	if d.conf.RelaxedBody() {
+	if d.Conf.RelaxedBody() {
 		if len(body) == 0 {
 			return nil
 		}
@@ -92,7 +90,7 @@ func (d *DKIM) canonicalBody(body []byte) []byte {
 
 func (d *DKIM) canonicalBodyHash(body []byte) []byte {
 	b := d.canonicalBody(body)
-	digest := d.conf.Hash().New()
+	digest := d.Conf.Hash().New()
 	digest.Write([]byte(b))
 
 	return digest.Sum(nil)
@@ -108,20 +106,20 @@ func (d *DKIM) signableHeaderBlock(header, body []byte) string {
 		}
 	}
 
-	d.conf[BodyHashKey] = base64.StdEncoding.EncodeToString(d.canonicalBodyHash(body))
-	d.conf[FieldsKey] = signableHeaderList.Fields()
+	d.Conf[BodyHashKey] = base64.StdEncoding.EncodeToString(d.canonicalBodyHash(body))
+	d.Conf[FieldsKey] = signableHeaderList.Fields()
 
-	signableHeaderList = append(signableHeaderList, NewHeader(SignatureHeaderKey, d.conf.String()))
+	signableHeaderList = append(signableHeaderList, NewHeader(SignatureHeaderKey, d.Conf.String()))
 
 	// According to RFC6376 http://tools.ietf.org/html/rfc6376#section-3.7
 	// the DKIM header must be inserted without a trailing <CRLF>.
 	// That's why we have to trim the space from the canonical header.
-	return strings.TrimSpace(signableHeaderList.Canonical(d.conf.RelaxedHeader()))
+	return strings.TrimSpace(signableHeaderList.Canonical(d.Conf.RelaxedHeader()))
 }
 
 func (d *DKIM) signature(header, body []byte) (string, error) {
 	block := d.signableHeaderBlock(header, body)
-	hash := d.conf.Hash()
+	hash := d.Conf.Hash()
 	digest := hash.New()
 	digest.Write([]byte(block))
 
@@ -134,21 +132,20 @@ func (d *DKIM) signature(header, body []byte) (string, error) {
 }
 
 func (d *DKIM) Sign(eml []byte) (signed []byte, err error) {
+    //d.Conf[TimestampKey] = strconv.FormatInt(time.Now().Unix(), 10)
 	header, body, err := splitEML(eml)
 	if err != nil {
 		return
 	}
-    d.conf[TimestampKey] = strconv.FormatInt(time.Now().Unix(), 10)
 	sig, err := d.signature(header, body)
 	if err != nil {
 		return
 	}
-	d.conf[SignatureDataKey] = sig
+	d.Conf[SignatureDataKey] = sig
 	headerList := ParseHeaderList(header)
-
 	// Append the signature header. Keep in mind these are raw values,
 	// so we add a <SP> character before the key-value list
-	headerList = append(headerList, NewHeader(SignatureHeaderKey, d.conf.String()))
+	headerList = append(headerList, NewHeader(SignatureHeaderKey, d.Conf.String()))
 	signedHeader := headerList.Canonical(false)
 
 	signed = []byte(strings.Join([]string{

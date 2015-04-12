@@ -94,6 +94,10 @@ func DKIMSign(data []byte, domain string) ([]byte, error) {
 	//log.Debug("Domain - %s\nSelector-%s\nData-%s",privKey.Domain,privKey.Selector,privKey.Data)
 	//log.Debug("Mail data - %s",bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 
+    privKey.dkim.Conf, err = dkim.NewConf(privKey.Domain, privKey.Selector)
+    if err != nil {
+        return data, err
+    }
 
 	signeddata, err := privKey.dkim.Sign(bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 	if err != nil {
