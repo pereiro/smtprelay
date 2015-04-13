@@ -41,7 +41,7 @@ func NewSocketLogWriter(proto, hostport string) SocketLogWriter {
 			js := FormatSyslogRecord(rec)
 			_, err = sock.Write([]byte(js))
 			if err != nil {
-				fmt.Fprint(os.Stderr, "SocketLogWriter(%q): %s", hostport, err)
+				//fmt.Fprint(os.Stderr, "SocketLogWriter(%q): %s", hostport, err)
 				continue
 			}
 		}
