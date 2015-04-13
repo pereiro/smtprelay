@@ -42,7 +42,7 @@ func NewSocketLogWriter(proto, hostport string) SocketLogWriter {
 			_, err = sock.Write([]byte(js))
 			if err != nil {
 				fmt.Fprint(os.Stderr, "SocketLogWriter(%q): %s", hostport, err)
-				return
+				continue
 			}
 		}
 	}()
