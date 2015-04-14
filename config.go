@@ -18,12 +18,7 @@ type Conf struct {
 	RelayModeEnabled        bool
 	RelayServer             string
 	NumCPU                  int
-	RedisMailQueueName      string
-	RedisErrorQueueName     string
-	RedisHost               string
-	RedisPort               string
-	RedisPassword           string
-	RedisDB                 int64
+    QueueFile                  string
 	MQStatisticPort         string
 	MQQueueBuffer           int
 	DeferredMailDelay       int
