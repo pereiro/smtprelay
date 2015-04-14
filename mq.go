@@ -45,8 +45,6 @@ func InitQueues(filename string) error {
     if err != nil {
         return err
     }
-    defer db.Close()
-
 
     err = db.Update(func(tx *bolt.Tx) error {
         _, err = tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
@@ -66,6 +64,9 @@ func InitQueues(filename string) error {
     return nil
 }
 
+func CloseQueues(){
+    db.Close()
+}
 
 
 func PutMail(entry QueueEntry) error {

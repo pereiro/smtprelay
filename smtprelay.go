@@ -44,18 +44,22 @@ func main() {
     flags := GetFlags()
 
 	InitLogger(flags.LogConfigFilePath)
+
 	log.Info("Starting..")
 	conf = new(Conf)
 	if err := conf.Load(flags.MainConfigFilePath); err != nil {
 		log.Critical("can't load config,shut down:", err.Error())
 		panic(err.Error())
 	}
+
 	runtime.GOMAXPROCS(conf.NumCPU)
 
 	if err := InitQueues(conf.QueueFile); err != nil {
 		log.Critical("can't init redis MQ", err.Error())
 		panic(err.Error())
 	}
+    defer CloseQueues()
+
 	log.Info("MQ initialized")
 	go StartStatisticServer()
 	go StartSender()
