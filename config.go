@@ -19,8 +19,7 @@ type Conf struct {
 	RelayServer             string
 	NumCPU                  int
     QueueFile                  string
-	MQStatisticPort         string
-	MQQueueBuffer           int
+	StatisticPort         string
 	DeferredMailDelay       int
 	DeferredMailMaxErrors   int
 	MaxRecipients           int

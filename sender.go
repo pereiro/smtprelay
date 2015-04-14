@@ -3,6 +3,7 @@ package main
 import (
 	"smtprelay/smtp"
 	"time"
+    "net/http"
 )
 
 var (
@@ -33,9 +34,19 @@ func StartErrorHandler() {
 	}
 }
 
+func StatisticHandler(w http.ResponseWriter, r *http.Request) {
+    js,err := GetQueueStatistics()
+    if err != nil {
+        log.Error("can't start statistics server:%s",err)
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(js)
+}
+
+
 func StartStatisticServer() {
-//	StatisticServer = redismq.NewServer(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.MQStatisticPort)
-//	StatisticServer.Start()
+    http.HandleFunc("/", StatisticHandler)
+    http.ListenAndServe(":"+conf.StatisticPort, nil)
 }
 
 func CloneMailers() {

@@ -125,7 +125,7 @@ func Extract(ch chan QueueEntry, queueName string,checkDate bool) error {
     })
 }
 
-func GetQueueStatistics() (info string,err error) {
+func GetQueueStatistics() (data []byte,err error) {
     var stats QueueStats
     err = db.View(func(tx *bolt.Tx) error {
         stats.DBStats = tx.Stats()
@@ -134,14 +134,15 @@ func GetQueueStatistics() (info string,err error) {
         return nil
     })
     if err != nil {
-        return info,err
+        return data,err
     }
-    data,err := json.Marshal(stats)
+    data,err = json.Marshal(stats)
     if err != nil {
-        return info,err
+        return data,err
     }
-    return string(data),err
+    return data,err
 }
+
 
 
 
