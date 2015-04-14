@@ -157,12 +157,14 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 		select {
 		case MailMQChannel <- entry:
 		default:
-			err = PutMail(entry)
-			if err != nil {
-				log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
-				return ErrServerError
-			}
-			log.Info("msg %s QUEUED", msg.String())
+        go func() {
+            err = PutMail(entry)
+            if err != nil {
+                log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
+                return
+            }
+            log.Info("msg %s QUEUED", msg.String())
+        }()
 		}
 	}
 	return nil
