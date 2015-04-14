@@ -20,6 +20,8 @@ var (
 )
 
 type QueueStats struct{
+    ErrorQueueLength uint64
+    MailQueueLength uint64
     DBStats bolt.TxStats
     MailStats bolt.BucketStats
     ErrorStats bolt.BucketStats
@@ -173,6 +175,8 @@ func GetMailQueueLength() uint64{
 
 func GetQueueStatistics() (data []byte,err error) {
     var stats QueueStats
+    stats.ErrorQueueLength = ErrorQueueLength
+    stats.MailQueueLength = MailQueueLength
     err = db.View(func(tx *bolt.Tx) error {
         stats.DBStats = tx.Stats()
         stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
