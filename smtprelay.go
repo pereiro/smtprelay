@@ -5,23 +5,48 @@ import (
 	"smtprelay/smtpd"
 	"runtime"
 	"strings"
+    "os"
+    "fmt"
 )
 
 var (
 	conf *Conf
 )
 
+const(
+    MAINCONFIGFILENAME = "config.json"
+    LOGCONFIGFILENAME = "logconfig.xml"
+)
+
+type Flags struct{
+    MainConfigFilePath string
+    LogConfigFilePath string
+}
+
+func GetFlags() (flags Flags){
+    var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
+    flag.Parse()
+    flags.MainConfigFilePath = *workDir+string(os.PathSeparator)+MAINCONFIGFILENAME
+    flags.LogConfigFilePath = *workDir+string(os.PathSeparator)+LOGCONFIGFILENAME
+    if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
+        fmt.Fprintf(os.Stderr,"File %s not found.Please specify correct workdir",flags.MainConfigFilePath)
+        os.Exit(1)
+    }
+    if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
+        fmt.Fprintf(os.Stderr,"File %s not found.Please specify correct workdir",flags.LogConfigFilePath)
+        os.Exit(1)
+    }
+    return flags
+}
+
+
 func main() {
+    flags := GetFlags()
 
-	var logConfigFile = flag.String("logconfig", "/usr/local/etc/smtprelay/logconfig.xml", "enter path to file with log settings. Default:/usr/local/etc/smtprelay/logconfig.xml")
-	var mainConfigFile = flag.String("config", "/usr/local/etc/smtprelay/config.json", "enter path to config file. Default:/usr/local/etc/smtprelay/config.json")
-
-	flag.Parse()
-
-	InitLogger(*logConfigFile)
+	InitLogger(flags.LogConfigFilePath)
 	log.Info("Starting..")
 	conf = new(Conf)
-	if err := conf.Load(*mainConfigFile); err != nil {
+	if err := conf.Load(flags.MainConfigFilePath); err != nil {
 		log.Critical("can't load config,shut down:", err.Error())
 		panic(err.Error())
 	}
