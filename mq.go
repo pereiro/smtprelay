@@ -108,8 +108,7 @@ func Extract(ch chan QueueEntry, queueName string,checkDate bool) error {
             if err != nil {
                 return err
             }
-            log.Info("QueueTime=%d;UnqueueTime=%s,Now=%s. Item must be dropped=%t",entry.QueueTime,entry.UnqueueTime,now,checkDate && entry.UnqueueTime.Before(now))
-            if checkDate && entry.UnqueueTime.Before(now){
+            if checkDate && entry.UnqueueTime.After(now){
                 continue
             }
             select {
