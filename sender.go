@@ -6,6 +6,8 @@ import (
     "net/http"
 )
 
+const ERRORQUEUETHRESHOLD = 100
+
 var (
 	MailMQChannel chan QueueEntry
 )
@@ -19,7 +21,7 @@ func StartSender() {
 		if err != nil {
 			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
 		}
-        time.Sleep(1 * time.Second)
+        time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -30,7 +32,8 @@ func StartErrorHandler() {
         if err != nil {
             log.Error("error reading msg from Error Queue DB:%s", err.Error())
         }
-        time.Sleep(10 * time.Second)
+            time.Sleep(100 * time.Millisecond)
+
 	}
 }
 

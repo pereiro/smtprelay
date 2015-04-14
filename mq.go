@@ -125,6 +125,22 @@ func Extract(ch chan QueueEntry, queueName string,checkDate bool) error {
     })
 }
 
+func GetQueueLength(queueName string) int {
+    var qStats bolt.BucketStats
+    err := db.View(func(tx *bolt.Tx) error {
+        qStats = tx.Bucket([]byte(queueName)).Stats()
+        return nil
+    })
+    if err != nil {
+        return 0
+    }
+    return qStats.KeyN
+}
+
+func GetErrorQueueLength()int{
+    return  GetQueueLength(ERROR_BUCKET_NAME)
+}
+
 func GetQueueStatistics() (data []byte,err error) {
     var stats QueueStats
     err = db.View(func(tx *bolt.Tx) error {
