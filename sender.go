@@ -21,7 +21,9 @@ func StartSender() {
 		if err != nil {
 			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
 		}
-        time.Sleep(100 * time.Millisecond)
+        if GetMailQueueLength()==0 {
+            time.Sleep(1000 * time.Millisecond)
+        }
 	}
 }
 
@@ -32,8 +34,9 @@ func StartErrorHandler() {
         if err != nil {
             log.Error("error reading msg from Error Queue DB:%s", err.Error())
         }
-            time.Sleep(100 * time.Millisecond)
-
+        if GetErrorQueueLength()==0 {
+            time.Sleep(10000 * time.Millisecond)
+        }
 	}
 }
 
@@ -105,4 +108,8 @@ func SendMail(entry QueueEntry) {
 		log.Info("msg %s SENT%s: %s", entry.String(), signed, ErrStatusSuccess.Error())
 	}
 
+}
+
+func BufferLengthPercent() int {
+    return int((float32(len(MailMQChannel))/float32(cap(MailMQChannel)))*100)
 }
