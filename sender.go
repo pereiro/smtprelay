@@ -3,7 +3,6 @@ package main
 import (
 	"smtprelay/smtp"
 	"time"
-    "net/http"
 )
 
 const ERRORQUEUETHRESHOLD = 100
@@ -17,10 +16,10 @@ func StartSender() {
 	go CloneMailers()
 	go StartErrorHandler()
 	for {
-        if GetMailQueueLength()==0 {
-            time.Sleep(1000 * time.Millisecond)
-            continue
-        }
+		if GetMailQueueLength() == 0 {
+			time.Sleep(1000 * time.Millisecond)
+			continue
+		}
 		err := ExtractMail(MailMQChannel)
 		if err != nil {
 			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
@@ -32,30 +31,15 @@ func StartSender() {
 func StartErrorHandler() {
 
 	for {
-        if GetErrorQueueLength()==0 || GetMailQueueLength()>0{
-            time.Sleep(1000 * time.Millisecond)
-            continue
-        }
-        err := ExtractError(MailMQChannel)
-        if err != nil {
-            log.Error("error reading msg from Error Queue DB:%s", err.Error())
-        }
+		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
+			time.Sleep(1000 * time.Millisecond)
+			continue
+		}
+		err := ExtractError(MailMQChannel)
+		if err != nil {
+			log.Error("error reading msg from Error Queue DB:%s", err.Error())
+		}
 	}
-}
-
-func StatisticHandler(w http.ResponseWriter, r *http.Request) {
-    js,err := GetQueueStatistics()
-    if err != nil {
-        log.Error("can't start statistics server:%s",err)
-    }
-    w.Header().Set("Content-Type", "application/json")
-    w.Write(js)
-}
-
-
-func StartStatisticServer() {
-    http.HandleFunc("/", StatisticHandler)
-    http.ListenAndServe(":"+conf.StatisticPort, nil)
 }
 
 func CloneMailers() {
@@ -66,6 +50,8 @@ func CloneMailers() {
 }
 
 func SendMail(entry QueueEntry) {
+    MailSendersIncreaseCounter(1)
+    defer MailSenderssDecreaseCounter(1)
 	log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte
@@ -73,7 +59,6 @@ func SendMail(entry QueueEntry) {
 	if conf.DKIMEnabled {
 		data, err = DKIMSign(entry.Data, entry.SenderDomain)
 		if err != nil {
-			//log.Warn("can't sign msg:%s",err.Error())
 			data = entry.Data
 			signed = "(NOT SIGNED)"
 		}
@@ -99,8 +84,8 @@ func SendMail(entry QueueEntry) {
 				log.Error("msg %s DROPPED defer limit =(%d/%d): %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
 				return
 			}
-            entry.QueueTime = time.Now()
-            entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay)*time.Second)
+			entry.QueueTime = time.Now()
+			entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay) * time.Second)
 			err := PutError(entry)
 			if err != nil {
 				log.Error("msg %s DROPPED, can't defer cause of %s: %s", entry.String(), err.Error(), smtpError.Error())
@@ -113,6 +98,3 @@ func SendMail(entry QueueEntry) {
 
 }
 
-//func BufferLengthPercent() int {
-//    return int((float32(len(MailMQChannel))/float32(cap(MailMQChannel)))*100)
-//}

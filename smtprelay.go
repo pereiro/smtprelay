@@ -2,47 +2,30 @@ package main
 
 import (
 	"flag"
-	"smtprelay/smtpd"
+	"fmt"
+	"os"
 	"runtime"
+	"smtprelay/smtpd"
 	"strings"
-    "os"
-    "fmt"
 )
 
 var (
 	conf *Conf
-    //IncomingLimiter chan interface{}
+	//IncomingLimiter chan interface{}
 )
 
-const(
-    MAINCONFIGFILENAME = "config.json"
-    LOGCONFIGFILENAME = "logconfig.xml"
+const (
+	MAINCONFIGFILENAME = "config.json"
+	LOGCONFIGFILENAME  = "logconfig.xml"
 )
 
-type Flags struct{
-    MainConfigFilePath string
-    LogConfigFilePath string
+type Flags struct {
+	MainConfigFilePath string
+	LogConfigFilePath  string
 }
-
-func GetFlags() (flags Flags){
-    var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
-    flag.Parse()
-    flags.MainConfigFilePath = *workDir+string(os.PathSeparator)+MAINCONFIGFILENAME
-    flags.LogConfigFilePath = *workDir+string(os.PathSeparator)+LOGCONFIGFILENAME
-    if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
-        fmt.Fprintf(os.Stderr,"File %s not found.Please specify correct workdir",flags.MainConfigFilePath)
-        os.Exit(1)
-    }
-    if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
-        fmt.Fprintf(os.Stderr,"File %s not found.Please specify correct workdir",flags.LogConfigFilePath)
-        os.Exit(1)
-    }
-    return flags
-}
-
 
 func main() {
-    flags := GetFlags()
+	flags := GetFlags()
 
 	InitLogger(flags.LogConfigFilePath)
 
@@ -59,7 +42,7 @@ func main() {
 		log.Critical("can't init redis MQ", err.Error())
 		panic(err.Error())
 	}
-    defer CloseQueues()
+	defer CloseQueues()
 
 	log.Info("MQ initialized")
 	go StartStatisticServer()
@@ -79,7 +62,7 @@ func main() {
 	if conf.RelayModeEnabled {
 		log.Info("TEST MODE ENABLED!! All messages will be redirected to %s", conf.RelayServer)
 	}
-    //IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
+	//IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
 
 	server := &smtpd.Server{
 		Hostname:       conf.ServerHostName,
@@ -88,18 +71,13 @@ func main() {
 		Handler:        handlerPanicProcessor(handler),
 	}
 
-    log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
-    log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
+	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
+	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
 	work := func() {
 		server.ListenAndServe(conf.ListenPort)
-		/*        defer func() {
-		          if r:=recover();r!=nil{
-		              log.Critical("recovered from PANIC:%s",r)
-		          }
-		      }()*/
 	}
 
 	for {
@@ -160,16 +138,34 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 		select {
 		case MailMQChannel <- entry:
 		default:
-        go func() {
-            err = PutMail(entry)
-            if err != nil {
-                log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
-                return
-            }
-            log.Info("msg %s QUEUED", msg.String())
-        }()
+			go func() {
+                MailHandlersIncreaseCounter(1)
+                defer MailHandlersDecreaseCounter(1)
+				err = PutMail(entry)
+				if err != nil {
+					log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
+					return
+				}
+				log.Info("msg %s QUEUED", msg.String())
+			}()
 		}
 	}
 	return nil
 
+}
+
+func GetFlags() (flags Flags) {
+    var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
+    flag.Parse()
+    flags.MainConfigFilePath = *workDir + string(os.PathSeparator) + MAINCONFIGFILENAME
+    flags.LogConfigFilePath = *workDir + string(os.PathSeparator) + LOGCONFIGFILENAME
+    if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
+        fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.MainConfigFilePath)
+        os.Exit(1)
+    }
+    if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
+        fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.LogConfigFilePath)
+        os.Exit(1)
+    }
+    return flags
 }

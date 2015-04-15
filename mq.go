@@ -6,7 +6,6 @@ import (
 	"github.com/boltdb/bolt"
 	"smtprelay/smtpd"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -15,17 +14,7 @@ const ERROR_BUCKET_NAME = "ERROR"
 
 var (
 	db               *bolt.DB
-	ErrorQueueLength int64
-	MailQueueLength  int64
 )
-
-type QueueStats struct {
-	ErrorQueueLength int64
-	MailQueueLength  int64
-	DBStats          bolt.TxStats
-	MailStats        bolt.BucketStats
-	ErrorStats       bolt.BucketStats
-}
 
 type QueueEntry struct {
 	MailServer   string
@@ -78,7 +67,7 @@ func PutMail(entry QueueEntry) error {
 	if err != nil {
 		return err
 	}
-	atomic.AddInt64(&MailQueueLength, 1)
+	MailQueueIncreaseCounter(1)
 	return nil
 }
 
@@ -87,7 +76,7 @@ func PutError(entry QueueEntry) error {
 	if err != nil {
 		return err
 	}
-	atomic.AddInt64(&ErrorQueueLength, 1)
+    ErrorQueueIncreaseCounter(1)
 	return nil
 }
 
@@ -96,7 +85,7 @@ func ExtractMail(ch chan QueueEntry) error {
 	if err != nil {
 		return err
 	}
-	atomic.AddInt64(&MailQueueLength, -int64(count))
+    MailQueueDecreaseCounter(count)
 	return nil
 }
 
@@ -105,7 +94,7 @@ func ExtractError(ch chan QueueEntry) error {
 	if err != nil {
 		return err
 	}
-	atomic.AddInt64(&ErrorQueueLength, -int64(count))
+    ErrorQueueDecreaseCounter(count)
 	return nil
 }
 
@@ -145,7 +134,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 						return err
 					}
 					count++
-                    log.Info("msg %s UNQUEUED from %s", entry.String(), queueName)
+					log.Info("msg %s UNQUEUED from %s", entry.String(), queueName)
 				}
 			default:
 				return nil
@@ -155,42 +144,4 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 	}), count
 }
 
-//func GetQueueLength(queueName string) int {
-//    var qStats bolt.BucketStats
-//    err := db.View(func(tx *bolt.Tx) error {
-//        qStats = tx.Bucket([]byte(queueName)).Stats()
-//        return nil
-//    })
-//    if err != nil {
-//        return 0
-//    }
-//    return qStats.KeyN
-//}
 
-func GetErrorQueueLength() int64 {
-	return ErrorQueueLength
-}
-
-func GetMailQueueLength() int64 {
-	return MailQueueLength
-}
-
-func GetQueueStatistics() (data []byte, err error) {
-	var stats QueueStats
-	stats.ErrorQueueLength = ErrorQueueLength
-	stats.MailQueueLength = MailQueueLength
-	err = db.View(func(tx *bolt.Tx) error {
-		stats.DBStats = tx.Stats()
-		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
-		stats.ErrorStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
-		return nil
-	})
-	if err != nil {
-		return data, err
-	}
-	data, err = json.Marshal(stats)
-	if err != nil {
-		return data, err
-	}
-	return data, err
-}
