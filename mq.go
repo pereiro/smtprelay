@@ -13,7 +13,7 @@ const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
 
 var (
-	db               *bolt.DB
+	db *bolt.DB
 )
 
 type QueueEntry struct {
@@ -76,7 +76,7 @@ func PutError(entry QueueEntry) error {
 	if err != nil {
 		return err
 	}
-    ErrorQueueIncreaseCounter(1)
+	ErrorQueueIncreaseCounter(1)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func ExtractMail(ch chan QueueEntry) error {
 	if err != nil {
 		return err
 	}
-    MailQueueDecreaseCounter(count)
+	MailQueueDecreaseCounter(count)
 	return nil
 }
 
@@ -94,7 +94,7 @@ func ExtractError(ch chan QueueEntry) error {
 	if err != nil {
 		return err
 	}
-    ErrorQueueDecreaseCounter(count)
+	ErrorQueueDecreaseCounter(count)
 	return nil
 }
 
@@ -143,5 +143,3 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 		return nil
 	}), count
 }
-
-

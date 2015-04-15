@@ -50,8 +50,8 @@ func CloneMailers() {
 }
 
 func SendMail(entry QueueEntry) {
-    MailSendersIncreaseCounter(1)
-    defer MailSenderssDecreaseCounter(1)
+	MailSendersIncreaseCounter(1)
+	defer MailSenderssDecreaseCounter(1)
 	log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte
@@ -97,4 +97,3 @@ func SendMail(entry QueueEntry) {
 	}
 
 }
-

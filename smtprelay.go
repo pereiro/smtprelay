@@ -139,8 +139,8 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 		case MailMQChannel <- entry:
 		default:
 			go func() {
-                MailHandlersIncreaseCounter(1)
-                defer MailHandlersDecreaseCounter(1)
+				MailHandlersIncreaseCounter(1)
+				defer MailHandlersDecreaseCounter(1)
 				err = PutMail(entry)
 				if err != nil {
 					log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
@@ -155,17 +155,17 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 }
 
 func GetFlags() (flags Flags) {
-    var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
-    flag.Parse()
-    flags.MainConfigFilePath = *workDir + string(os.PathSeparator) + MAINCONFIGFILENAME
-    flags.LogConfigFilePath = *workDir + string(os.PathSeparator) + LOGCONFIGFILENAME
-    if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
-        fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.MainConfigFilePath)
-        os.Exit(1)
-    }
-    if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
-        fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.LogConfigFilePath)
-        os.Exit(1)
-    }
-    return flags
+	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
+	flag.Parse()
+	flags.MainConfigFilePath = *workDir + string(os.PathSeparator) + MAINCONFIGFILENAME
+	flags.LogConfigFilePath = *workDir + string(os.PathSeparator) + LOGCONFIGFILENAME
+	if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.MainConfigFilePath)
+		os.Exit(1)
+	}
+	if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.LogConfigFilePath)
+		os.Exit(1)
+	}
+	return flags
 }
