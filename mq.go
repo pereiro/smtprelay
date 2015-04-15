@@ -115,7 +115,7 @@ func Put(entry QueueEntry, queueName string) error {
 	if err != nil {
 		return err
 	}
-	return  db.Batch(func(tx *bolt.Tx) error {
+	return  db.Update(func(tx *bolt.Tx) error {
     bucket := tx.Bucket([]byte(queueName))
     return bucket.Put([]byte(entry.MessageId),json)
     })
