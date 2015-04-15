@@ -71,7 +71,7 @@ func CloseQueues() {
 	db.Close()
 }
 
-func QueueHandler(ch chan QueueEntry, queueName string, queueCounter int64, bufferSize int) {
+func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, bufferSize int) {
 	for {
 		var entries []QueueEntry
 		var entry QueueEntry
