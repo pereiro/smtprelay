@@ -26,7 +26,7 @@ type QueueStats struct {
 	ErrorQueueCounter   int64
 	MailQueueCounter    int64
 	MailHandlersCounter int64
-    MailSendersCounter  int64
+	MailSendersCounter  int64
 	DBStats             bolt.TxStats
 	MailStats           bolt.BucketStats
 	ErrorStats          bolt.BucketStats
@@ -37,7 +37,7 @@ func GetStatistics() (data []byte, err error) {
 	stats.ErrorQueueCounter = ErrorQueueCounter
 	stats.MailQueueCounter = MailQueueCounter
 	stats.MailHandlersCounter = MailHandlersCounter
-    stats.MailSendersCounter  = MailSendersCounter
+	stats.MailSendersCounter = MailSendersCounter
 	err = db.View(func(tx *bolt.Tx) error {
 		stats.DBStats = tx.Stats()
 		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
