@@ -136,7 +136,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 	}
 	for _, entry := range entries {
 		select {
-		case MailMQChannel <- entry:
+		case MailDirectChannel <- entry:
 		default:
 			go func() {
 				MailHandlersIncreaseCounter(1)

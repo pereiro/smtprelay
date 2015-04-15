@@ -8,12 +8,10 @@ import (
 const ERRORQUEUETHRESHOLD = 100
 
 var (
-	MailMQChannel chan QueueEntry
 	SenderLimiter chan interface{}
 )
 
 func StartSender() {
-	MailMQChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
 	SenderLimiter = make(chan interface{}, conf.MaxOutcomingConnections)
 	go CloneMailers()
 	go StartErrorHandler()
@@ -22,7 +20,7 @@ func StartSender() {
 			time.Sleep(1000 * time.Millisecond)
 			continue
 		}
-		err := ExtractMail(MailMQChannel)
+		err := ExtractMail(MailDirectChannel)
 		if err != nil {
 			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
 		}
@@ -37,7 +35,7 @@ func StartErrorHandler() {
 			time.Sleep(1000 * time.Millisecond)
 			continue
 		}
-		err := ExtractError(MailMQChannel)
+		err := ExtractError(MailDirectChannel)
 		if err != nil {
 			log.Error("error reading msg from Error Queue DB:%s", err.Error())
 		}
@@ -47,7 +45,7 @@ func StartErrorHandler() {
 func CloneMailers() {
 	for {
 		SenderLimiter <- 0
-		entry := <-MailMQChannel
+		entry := <-MailDirectChannel
 		go SendMail(entry)
 	}
 }

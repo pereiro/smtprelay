@@ -14,6 +14,9 @@ const ERROR_BUCKET_NAME = "ERROR"
 
 var (
 	db *bolt.DB
+    MailDirectChannel chan QueueEntry
+    MailQueueChannel chan QueueEntry
+    ErrorQueueChannel chan QueueEntry
 )
 
 type QueueEntry struct {
@@ -34,6 +37,9 @@ func (e QueueEntry) String() string {
 }
 
 func InitQueues(filename string) error {
+    MailDirectChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
+    MailQueueChannel = make(chan QueueEntry)
+    ErrorQueueChannel = make(chan QueueEntry)
 	var err error
 	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
 	if err != nil {
@@ -49,13 +55,15 @@ func InitQueues(filename string) error {
 		if err != nil {
 			return err
 		}
-        SetCounterInitialValues(int64(eBucket.Stats().KeyN),int64(mBucket.Stats().KeyN))
+		SetCounterInitialValues(int64(eBucket.Stats().KeyN), int64(mBucket.Stats().KeyN))
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
-
+    go QueueHandler(MailQueueChannel,MAIL_BUCKET_NAME,MailQueueCounter,1000)
+    go QueueHandler(ErrorQueueChannel,ERROR_BUCKET_NAME,ErrorQueueCounter,1000)
 	return nil
 }
 
@@ -63,22 +71,52 @@ func CloseQueues() {
 	db.Close()
 }
 
+func QueueHandler(ch chan QueueEntry,queueName string,queueCounter int64,bufferSize int){
+    for {
+        var entries []QueueEntry
+        var entry QueueEntry
+        for i:=0;i<bufferSize;i++ {
+            select {
+            case entry = <-ch : entries = append(entries, entry)
+            default:
+                if len(entries)==0 {
+                    entry= <- ch
+                } else {
+                   break;
+                }
+            }
+        }
+        err := db.Update(func(tx *bolt.Tx) error{
+            for _,entry:= range entries{
+                b :=tx.Bucket([]byte(queueName))
+                json, err := json.Marshal(entry)
+                if err != nil {
+                    return err
+                }
+                err=b.Put([]byte(entry.MessageId),json)
+                if err != nil {
+                    return err
+                }
+                QueueIncreaseCounter(queueCounter,1)
+            }
+            return nil
+        })
+        if err != nil {
+            log.Error("Error writing queue on disk: %s",err.Error())
+        }
+
+    }
+}
+
+
 func PutMail(entry QueueEntry) error {
-	err := Put(entry, MAIL_BUCKET_NAME)
-	if err != nil {
-		return err
-	}
-	MailQueueIncreaseCounter(1)
-	return nil
+   MailQueueChannel <- entry
+   return nil;
 }
 
 func PutError(entry QueueEntry) error {
-	err := Put(entry, ERROR_BUCKET_NAME)
-	if err != nil {
-		return err
-	}
-	ErrorQueueIncreaseCounter(1)
-	return nil
+    ErrorQueueChannel <- entry
+    return nil;
 }
 
 func ExtractMail(ch chan QueueEntry) error {
@@ -99,16 +137,16 @@ func ExtractError(ch chan QueueEntry) error {
 	return nil
 }
 
-func Put(entry QueueEntry, queueName string) error {
-	json, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-	return db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(queueName))
-		return bucket.Put([]byte(entry.MessageId), json)
-	})
-}
+//func Put(entry QueueEntry, queueName string) error {
+//	json, err := json.Marshal(entry)
+//	if err != nil {
+//		return err
+//	}
+//	return db.Update(func(tx *bolt.Tx) error {
+//		bucket := tx.Bucket([]byte(queueName))
+//		return bucket.Put([]byte(entry.MessageId), json)
+//	})
+//}
 
 func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
 	var err error
