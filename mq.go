@@ -38,8 +38,8 @@ func (e QueueEntry) String() string {
 
 func InitQueues(filename string) error {
 	MailDirectChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
-	MailQueueChannel = make(chan QueueEntry)
-	ErrorQueueChannel = make(chan QueueEntry)
+	MailQueueChannel = make(chan QueueEntry, 1000000)
+	ErrorQueueChannel = make(chan QueueEntry, 1000000)
 	var err error
 	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
 	if err != nil {
