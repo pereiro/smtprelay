@@ -17,25 +17,28 @@ func StartSender() {
 	go CloneMailers()
 	go StartErrorHandler()
 	for {
+        if GetMailQueueLength()==0 {
+            time.Sleep(1000 * time.Millisecond)
+            continue
+        }
 		err := ExtractMail(MailMQChannel)
 		if err != nil {
 			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
 		}
-        if GetMailQueueLength()==0 {
-            time.Sleep(1000 * time.Millisecond)
-        }
+
 	}
 }
 
 func StartErrorHandler() {
 
 	for {
+        if GetErrorQueueLength()==0 || GetMailQueueLength()>0{
+            time.Sleep(1000 * time.Millisecond)
+            continue
+        }
         err := ExtractError(MailMQChannel)
         if err != nil {
             log.Error("error reading msg from Error Queue DB:%s", err.Error())
-        }
-        if GetErrorQueueLength()==0 {
-            time.Sleep(10000 * time.Millisecond)
         }
 	}
 }
@@ -110,6 +113,6 @@ func SendMail(entry QueueEntry) {
 
 }
 
-func BufferLengthPercent() int {
-    return int((float32(len(MailMQChannel))/float32(cap(MailMQChannel)))*100)
-}
+//func BufferLengthPercent() int {
+//    return int((float32(len(MailMQChannel))/float32(cap(MailMQChannel)))*100)
+//}

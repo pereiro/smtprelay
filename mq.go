@@ -3,28 +3,28 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/boltdb/bolt"
 	"smtprelay/smtpd"
 	"strings"
-    "time"
-    "github.com/boltdb/bolt"
-    "sync/atomic"
+	"sync/atomic"
+	"time"
 )
 
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
 
 var (
-    db *bolt.DB
-    ErrorQueueLength int64
-    MailQueueLength int64
+	db               *bolt.DB
+	ErrorQueueLength int64
+	MailQueueLength  int64
 )
 
-type QueueStats struct{
-    ErrorQueueLength int64
-    MailQueueLength int64
-    DBStats bolt.TxStats
-    MailStats bolt.BucketStats
-    ErrorStats bolt.BucketStats
+type QueueStats struct {
+	ErrorQueueLength int64
+	MailQueueLength  int64
+	DBStats          bolt.TxStats
+	MailStats        bolt.BucketStats
+	ErrorStats       bolt.BucketStats
 }
 
 type QueueEntry struct {
@@ -36,8 +36,8 @@ type QueueEntry struct {
 	Data         []byte
 	Error        smtpd.Error
 	ErrorCount   int
-    QueueTime    time.Time
-    UnqueueTime  time.Time
+	QueueTime    time.Time
+	UnqueueTime  time.Time
 }
 
 func (e QueueEntry) String() string {
@@ -46,68 +46,67 @@ func (e QueueEntry) String() string {
 
 func InitQueues(filename string) error {
 	var err error
-    db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
-    if err != nil {
-        return err
-    }
+	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
+	if err != nil {
+		return err
+	}
 
-    err = db.Update(func(tx *bolt.Tx) error {
-        _, err = tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
-        if err != nil {
-            return err
-        }
-        _, err = tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
-        if err != nil {
-            return err
-        }
-        return nil
-    })
-    if err != nil {
-        return err
-    }
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err = tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
+		if err != nil {
+			return err
+		}
+		_, err = tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 
-    return nil
-}
-
-func CloseQueues(){
-    db.Close()
-}
-
-
-func PutMail(entry QueueEntry) error {
-    err:= Put(entry, MAIL_BUCKET_NAME)
-    if err != nil {
-        return err
-    }
-    atomic.AddInt64(&MailQueueLength,1)
-    return nil
-}
-
-func PutError(entry QueueEntry) error {
-    err:= Put(entry, ERROR_BUCKET_NAME)
-    if err != nil {
-        return err
-    }
-    atomic.AddInt64(&ErrorQueueLength,1)
 	return nil
 }
 
-func ExtractMail(ch chan QueueEntry) error{
-    err,count := Extract(ch,MAIL_BUCKET_NAME,false)
-    if err != nil {
-        return err
-    }
-    atomic.AddInt64(&MailQueueLength,-int64(count))
-    return nil
+func CloseQueues() {
+	db.Close()
 }
 
-func ExtractError(ch chan QueueEntry) error{
-    err,count := Extract(ch,ERROR_BUCKET_NAME,false)
-    if err != nil {
-        return err
-    }
-    atomic.AddInt64 (&ErrorQueueLength,-int64(count))
-    return nil
+func PutMail(entry QueueEntry) error {
+	err := Put(entry, MAIL_BUCKET_NAME)
+	if err != nil {
+		return err
+	}
+	atomic.AddInt64(&MailQueueLength, 1)
+	return nil
+}
+
+func PutError(entry QueueEntry) error {
+	err := Put(entry, ERROR_BUCKET_NAME)
+	if err != nil {
+		return err
+	}
+	atomic.AddInt64(&ErrorQueueLength, 1)
+	return nil
+}
+
+func ExtractMail(ch chan QueueEntry) error {
+	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
+	if err != nil {
+		return err
+	}
+	atomic.AddInt64(&MailQueueLength, -int64(count))
+	return nil
+}
+
+func ExtractError(ch chan QueueEntry) error {
+	err, count := Extract(ch, ERROR_BUCKET_NAME, false)
+	if err != nil {
+		return err
+	}
+	atomic.AddInt64(&ErrorQueueLength, -int64(count))
+	return nil
 }
 
 func Put(entry QueueEntry, queueName string) error {
@@ -115,42 +114,45 @@ func Put(entry QueueEntry, queueName string) error {
 	if err != nil {
 		return err
 	}
-	return  db.Update(func(tx *bolt.Tx) error {
-    bucket := tx.Bucket([]byte(queueName))
-    return bucket.Put([]byte(entry.MessageId),json)
-    })
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(queueName))
+		return bucket.Put([]byte(entry.MessageId), json)
+	})
 }
 
-func Extract(ch chan QueueEntry, queueName string,checkDate bool) (error,int) {
-    var err error
-    var count int
-    now := time.Now()
-    return db.Update(func(tx *bolt.Tx) error {
-        bucket := tx.Bucket([]byte(queueName))
-        cursor := bucket.Cursor()
-        count = 0
-        for key,data := cursor.First();key!=nil;key,data = cursor.Next() {
-            var entry QueueEntry
-            err = json.Unmarshal(data, &entry)
-            if err != nil {
-                return err
-            }
-            if checkDate && entry.UnqueueTime.After(now){
-                continue
-            }
-            select {
-                case ch <- entry: {
-                    err = bucket.Delete(key)
-                    if err != nil {
-                        return err
-                    }
-                    count++
-                }
-                default: return nil
-            }
-        }
-        return nil
-    }),count
+func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
+	var err error
+	var count int
+	now := time.Now()
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(queueName))
+		cursor := bucket.Cursor()
+		count = 0
+		for key, data := cursor.First(); key != nil; key, data = cursor.Next() {
+			var entry QueueEntry
+			err = json.Unmarshal(data, &entry)
+			if err != nil {
+				return err
+			}
+			if checkDate && entry.UnqueueTime.After(now) {
+				continue
+			}
+			select {
+			case ch <- entry:
+				{
+					err = bucket.Delete(key)
+					if err != nil {
+						return err
+					}
+					count++
+                    log.Info("msg %s UNQUEUED from %s", entry.String(), queueName)
+				}
+			default:
+				return nil
+			}
+		}
+		return nil
+	}), count
 }
 
 //func GetQueueLength(queueName string) int {
@@ -165,35 +167,30 @@ func Extract(ch chan QueueEntry, queueName string,checkDate bool) (error,int) {
 //    return qStats.KeyN
 //}
 
-func GetErrorQueueLength() int64{
-    return  ErrorQueueLength
+func GetErrorQueueLength() int64 {
+	return ErrorQueueLength
 }
 
-func GetMailQueueLength() int64{
-    return  MailQueueLength
+func GetMailQueueLength() int64 {
+	return MailQueueLength
 }
 
-func GetQueueStatistics() (data []byte,err error) {
-    var stats QueueStats
-    stats.ErrorQueueLength = ErrorQueueLength
-    stats.MailQueueLength = MailQueueLength
-    err = db.View(func(tx *bolt.Tx) error {
-        stats.DBStats = tx.Stats()
-        stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
-        stats.ErrorStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
-        return nil
-    })
-    if err != nil {
-        return data,err
-    }
-    data,err = json.Marshal(stats)
-    if err != nil {
-        return data,err
-    }
-    return data,err
+func GetQueueStatistics() (data []byte, err error) {
+	var stats QueueStats
+	stats.ErrorQueueLength = ErrorQueueLength
+	stats.MailQueueLength = MailQueueLength
+	err = db.View(func(tx *bolt.Tx) error {
+		stats.DBStats = tx.Stats()
+		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
+		stats.ErrorStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
+		return nil
+	})
+	if err != nil {
+		return data, err
+	}
+	data, err = json.Marshal(stats)
+	if err != nil {
+		return data, err
+	}
+	return data, err
 }
-
-
-
-
-

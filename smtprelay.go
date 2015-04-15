@@ -11,6 +11,7 @@ import (
 
 var (
 	conf *Conf
+    //IncomingLimiter chan interface{}
 )
 
 const(
@@ -78,8 +79,7 @@ func main() {
 	if conf.RelayModeEnabled {
 		log.Info("TEST MODE ENABLED!! All messages will be redirected to %s", conf.RelayServer)
 	}
-	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
-	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
+    //IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
 
 	server := &smtpd.Server{
 		Hostname:       conf.ServerHostName,
@@ -87,6 +87,9 @@ func main() {
 		MaxConnections: conf.MaxIncomingConnections,
 		Handler:        handlerPanicProcessor(handler),
 	}
+
+    log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
+    log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
