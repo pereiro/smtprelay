@@ -62,8 +62,8 @@ func InitQueues(filename string) error {
 	if err != nil {
 		return err
 	}
-	go QueueHandler(MailQueueChannel, MAIL_BUCKET_NAME, MailQueueCounter, 1000)
-	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, ErrorQueueCounter, 1000)
+	go QueueHandler(MailQueueChannel, MAIL_BUCKET_NAME, &MailQueueCounter, 1000)
+	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 1000)
 	return nil
 }
 

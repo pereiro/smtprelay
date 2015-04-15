@@ -63,8 +63,8 @@ func GetStatistics() (data []byte, err error) {
 	return data, err
 }
 
-func QueueIncreaseCounter(counter int64, count int) {
-	atomic.AddInt64(&counter, int64(count))
+func QueueIncreaseCounter(counter *int64, count int) {
+	atomic.AddInt64(counter, int64(count))
 }
 
 //func MailQueueIncreaseCounter(count int) {
