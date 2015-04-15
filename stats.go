@@ -25,10 +25,10 @@ var (
 type QueueStats struct {
 	ErrorQueueCounter   int64
 	MailQueueCounter    int64
-    ErrorBufferCounter int64
-    MailBufferCounter int64
-    MailHandlersCounter int64
-    MailSendersCounter  int64
+	ErrorBufferCounter  int
+	MailBufferCounter   int
+	MailHandlersCounter int64
+	MailSendersCounter  int64
 	DBStats             bolt.TxStats
 	MailStats           bolt.BucketStats
 	ErrorStats          bolt.BucketStats
@@ -45,8 +45,8 @@ func GetStatistics() (data []byte, err error) {
 	stats.MailQueueCounter = MailQueueCounter
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
-    stats.MailBufferCounter = len(MailQueueChannel)
-    stats.ErrorBufferCounter = len(ErrorQueueChannel)
+	stats.MailBufferCounter = len(MailQueueChannel)
+	stats.ErrorBufferCounter = len(ErrorQueueChannel)
 	err = db.View(func(tx *bolt.Tx) error {
 		stats.DBStats = tx.Stats()
 		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
@@ -63,8 +63,8 @@ func GetStatistics() (data []byte, err error) {
 	return data, err
 }
 
-func QueueIncreaseCounter(counter int64,count int){
-    atomic.AddInt64(&counter, int64(count))
+func QueueIncreaseCounter(counter int64, count int) {
+	atomic.AddInt64(&counter, int64(count))
 }
 
 //func MailQueueIncreaseCounter(count int) {
