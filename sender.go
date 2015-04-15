@@ -9,12 +9,12 @@ const ERRORQUEUETHRESHOLD = 100
 
 var (
 	MailMQChannel chan QueueEntry
-    SenderLimiter chan interface{}
+	SenderLimiter chan interface{}
 )
 
 func StartSender() {
 	MailMQChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
-    SenderLimiter = make(chan interface{},conf.MaxOutcomingConnections)
+	SenderLimiter = make(chan interface{}, conf.MaxOutcomingConnections)
 	go CloneMailers()
 	go StartErrorHandler()
 	for {
@@ -46,18 +46,18 @@ func StartErrorHandler() {
 
 func CloneMailers() {
 	for {
-        SenderLimiter <- 0
+		SenderLimiter <- 0
 		entry := <-MailMQChannel
-        go SendMail(entry)
+		go SendMail(entry)
 	}
 }
 
 func SendMail(entry QueueEntry) {
 	MailSendersIncreaseCounter(1)
-	defer func (){
-        MailSenderssDecreaseCounter(1)
-        <- SenderLimiter
-    }()
+	defer func() {
+		MailSenderssDecreaseCounter(1)
+		<-SenderLimiter
+	}()
 	log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte

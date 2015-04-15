@@ -32,6 +32,11 @@ type QueueStats struct {
 	ErrorStats          bolt.BucketStats
 }
 
+func SetCounterInitialValues(errors int64,mails int64){
+        ErrorQueueCounter = errors
+        MailQueueCounter = mails
+    }
+
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
 	stats.ErrorQueueCounter = ErrorQueueCounter

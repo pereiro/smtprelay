@@ -41,14 +41,15 @@ func InitQueues(filename string) error {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err = tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
+		mBucket, err := tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
 		if err != nil {
 			return err
 		}
-		_, err = tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
+		eBucket, err := tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
 		if err != nil {
 			return err
 		}
+        SetCounterInitialValues(int64(eBucket.Stats().KeyN),int64(mBucket.Stats().KeyN))
 		return nil
 	})
 	if err != nil {
