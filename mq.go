@@ -15,13 +15,13 @@ const ERROR_BUCKET_NAME = "ERROR"
 
 var (
     db *bolt.DB
-    ErrorQueueLength uint64
-    MailQueueLength uint64
+    ErrorQueueLength int64
+    MailQueueLength int64
 )
 
 type QueueStats struct{
-    ErrorQueueLength uint64
-    MailQueueLength uint64
+    ErrorQueueLength int64
+    MailQueueLength int64
     DBStats bolt.TxStats
     MailStats bolt.BucketStats
     ErrorStats bolt.BucketStats
@@ -79,7 +79,7 @@ func PutMail(entry QueueEntry) error {
     if err != nil {
         return err
     }
-    atomic.AddUint64(&MailQueueLength,1)
+    atomic.AddInt64(&MailQueueLength,1)
     return nil
 }
 
@@ -88,7 +88,7 @@ func PutError(entry QueueEntry) error {
     if err != nil {
         return err
     }
-    atomic.AddUint64(&ErrorQueueLength,1)
+    atomic.AddInt64(&ErrorQueueLength,1)
 	return nil
 }
 
@@ -97,7 +97,7 @@ func ExtractMail(ch chan QueueEntry) error{
     if err != nil {
         return err
     }
-    atomic.AddUint64(&MailQueueLength,uint64(count))
+    atomic.AddInt64(&MailQueueLength,-int64(count))
     return nil
 }
 
@@ -106,7 +106,7 @@ func ExtractError(ch chan QueueEntry) error{
     if err != nil {
         return err
     }
-    atomic.AddUint64(&ErrorQueueLength,uint64(count))
+    atomic.AddInt64 (&ErrorQueueLength,-int64(count))
     return nil
 }
 
@@ -165,11 +165,11 @@ func Extract(ch chan QueueEntry, queueName string,checkDate bool) (error,int) {
 //    return qStats.KeyN
 //}
 
-func GetErrorQueueLength() uint64{
+func GetErrorQueueLength() int64{
     return  ErrorQueueLength
 }
 
-func GetMailQueueLength() uint64{
+func GetMailQueueLength() int64{
     return  MailQueueLength
 }
 
