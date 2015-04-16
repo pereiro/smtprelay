@@ -42,7 +42,7 @@ func SetCounterInitialValues(errors int64, mails int64) {
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
 	stats.ErrorQueueCounter = ErrorQueueCounter
-	stats.MailQueueCounter = MailQueueCounter
+	stats.MailQueueCounter = int64(len(MailQueueChannel))
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
 	stats.MailBufferCounter = len(MailQueueChannel)
@@ -71,9 +71,9 @@ func QueueIncreaseCounter(counter *int64, count int) {
 //	atomic.AddInt64(&MailQueueCounter, int64(count))
 //}
 
-func MailQueueDecreaseCounter(count int) {
-	atomic.AddInt64(&MailQueueCounter, -int64(count))
-}
+//func MailQueueDecreaseCounter(count int) {
+//	atomic.AddInt64(&MailQueueCounter, -int64(count))
+//}
 
 //func ErrorQueueIncreaseCounter(count int) {
 //	atomic.AddInt64(&ErrorQueueCounter, int64(count))
