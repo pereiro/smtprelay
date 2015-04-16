@@ -122,19 +122,21 @@ func PutError(entry QueueEntry) error {
 }
 
 func ExtractMail(ch chan QueueEntry) error {
-//	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
-//	if err != nil {
-//		return err
-//	}
-//	MailQueueDecreaseCounter(count)
-//	return nil\
-    var entry QueueEntry
-    for{
-        select {
-            case entry = <- MailQueueChannel: ch <- entry
-            default:break
-        }
-    }
+	//	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	MailQueueDecreaseCounter(count)
+	//	return nil\
+	var entry QueueEntry
+	for {
+		select {
+		case entry = <-MailQueueChannel:
+			ch <- entry
+		default:
+			break
+		}
+	}
 }
 
 func ExtractError(ch chan QueueEntry) error {
