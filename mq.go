@@ -38,7 +38,7 @@ func (e QueueEntry) String() string {
 }
 
 func InitQueues(filename string) error {
-	MailDirectChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
+	MailDirectChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	MailQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	ErrorQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	var err error
@@ -112,7 +112,7 @@ func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, buf
 }
 
 func PutMail(entry QueueEntry) error {
-	MailQueueChannel <- entry
+	MailDirectChannel <- entry
 	return nil
 }
 
@@ -121,23 +121,23 @@ func PutError(entry QueueEntry) error {
 	return nil
 }
 
-func ExtractMail(ch chan QueueEntry) error {
-	//	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	MailQueueDecreaseCounter(count)
-	//	return nil\
-	var entry QueueEntry
-	for {
-		select {
-		case entry = <-MailQueueChannel:
-			ch <- entry
-		default:
-			break
-		}
-	}
-}
+//func ExtractMail(ch chan QueueEntry) error {
+//	//	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
+//	//	if err != nil {
+//	//		return err
+//	//	}
+//	//	MailQueueDecreaseCounter(count)
+//	//	return nil\
+//	var entry QueueEntry
+//	for {
+//		select {
+//		case entry = <-MailQueueChannel:
+//			ch <- entry
+//		default:
+//			break
+//		}
+//	}
+//}
 
 func ExtractError(ch chan QueueEntry) error {
 	err, count := Extract(ch, ERROR_BUCKET_NAME, false)

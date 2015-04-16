@@ -15,17 +15,17 @@ func StartSender() {
 	SenderLimiter = make(chan interface{}, conf.MaxOutcomingConnections)
 	go CloneMailers()
 	go StartErrorHandler()
-	for {
-		if GetMailQueueLength() == 0 {
-			time.Sleep(1000 * time.Millisecond)
-			continue
-		}
-		err := ExtractMail(MailDirectChannel)
-		if err != nil {
-			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
-		}
-
-	}
+//	for {
+//		if GetMailQueueLength() == 0 {
+//			time.Sleep(1000 * time.Millisecond)
+//			continue
+//		}
+//		err := ExtractMail(MailDirectChannel)
+//		if err != nil {
+//			log.Error("error reading msg from Mail Queue DB:%s", err.Error())
+//		}
+//
+//	}
 }
 
 func StartErrorHandler() {
