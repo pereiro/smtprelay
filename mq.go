@@ -11,6 +11,7 @@ import (
 
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
+const MAX_QUEUE_BUFFER_SIZE = 1000000
 
 var (
 	db                *bolt.DB
@@ -38,8 +39,8 @@ func (e QueueEntry) String() string {
 
 func InitQueues(filename string) error {
 	MailDirectChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
-	MailQueueChannel = make(chan QueueEntry, 1000000)
-	ErrorQueueChannel = make(chan QueueEntry, 1000000)
+	MailQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
+	ErrorQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	var err error
 	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
 	if err != nil {
@@ -87,6 +88,7 @@ func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, buf
 				}
 			}
 		}
+
 		err := db.Update(func(tx *bolt.Tx) error {
 			for _, entry := range entries {
 				b := tx.Bucket([]byte(queueName))
@@ -136,17 +138,6 @@ func ExtractError(ch chan QueueEntry) error {
 	ErrorQueueDecreaseCounter(count)
 	return nil
 }
-
-//func Put(entry QueueEntry, queueName string) error {
-//	json, err := json.Marshal(entry)
-//	if err != nil {
-//		return err
-//	}
-//	return db.Update(func(tx *bolt.Tx) error {
-//		bucket := tx.Bucket([]byte(queueName))
-//		return bucket.Put([]byte(entry.MessageId), json)
-//	})
-//}
 
 func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
 	var err error
