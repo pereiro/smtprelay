@@ -63,7 +63,6 @@ func InitQueues(filename string) error {
 	if err != nil {
 		return err
 	}
-	//go QueueHandler(MailQueueChannel, MAIL_BUCKET_NAME, &MailQueueCounter, 1000)
 	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 1000)
 	return nil
 }
@@ -120,24 +119,6 @@ func PutError(entry QueueEntry) error {
 	ErrorQueueChannel <- entry
 	return nil
 }
-
-//func ExtractMail(ch chan QueueEntry) error {
-//	//	err, count := Extract(ch, MAIL_BUCKET_NAME, false)
-//	//	if err != nil {
-//	//		return err
-//	//	}
-//	//	MailQueueDecreaseCounter(count)
-//	//	return nil\
-//	var entry QueueEntry
-//	for {
-//		select {
-//		case entry = <-MailQueueChannel:
-//			ch <- entry
-//		default:
-//			break
-//		}
-//	}
-//}
 
 func ExtractError(ch chan QueueEntry) error {
 	err, count := Extract(ch, ERROR_BUCKET_NAME, false)
