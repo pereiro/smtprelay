@@ -12,6 +12,7 @@ import (
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
 const MAX_QUEUE_BUFFER_SIZE = 1000000
+const MAX_TRANSACTION_LENGTH = 1000
 
 var (
 	db                *bolt.DB
@@ -63,7 +64,7 @@ func InitQueues(filename string) error {
 	if err != nil {
 		return err
 	}
-	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 1000)
+	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 2000)
 	return nil
 }
 
@@ -134,10 +135,12 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 	var count int
 	now := time.Now()
 	return db.Update(func(tx *bolt.Tx) error {
+
 		bucket := tx.Bucket([]byte(queueName))
 		cursor := bucket.Cursor()
 		count = 0
-		for key, data := cursor.First(); key != nil; key, data = cursor.Next() {
+
+		for key, data := cursor.First(); key != nil && count <= MAX_TRANSACTION_LENGTH; key, data = cursor.Next() {
 			var entry QueueEntry
 			err = json.Unmarshal(data, &entry)
 			if err != nil {
