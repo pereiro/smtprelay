@@ -31,9 +31,10 @@ func StartErrorHandler() {
 
 func CloneMailers() {
 	for {
-		SenderLimiter <- 0
+
 		select {
 		case entry := <-MailDirectChannel:
+			SenderLimiter <- 0
 			go SendMail(entry)
 		default:
 			{
@@ -43,7 +44,7 @@ func CloneMailers() {
 						log.Error("error reading message from Mail Queue DB: %s", err.Error())
 					}
 					if success {
-						go SendMail(entry)
+						MailDirectChannel <- entry
 					}
 				}
 			}
