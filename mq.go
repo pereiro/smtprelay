@@ -152,7 +152,7 @@ func ExtractMail() (entry QueueEntry, success bool, err error) {
 	success = false
 	var data []byte
 	var key []byte
-	err = mailDb.Update(func(tx *bolt.Tx) error {
+	err = mailDb.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(MAIL_BUCKET_NAME))
 		c := b.Cursor()
 		key, data = c.First()
@@ -167,10 +167,16 @@ func ExtractMail() (entry QueueEntry, success bool, err error) {
 			return err
 		}
 		success = true
-		MailQueueDecreaseCounter(1)
 		return nil
 	})
+	if err != nil {
+		return
+	}
 	err = json.Unmarshal(data, &entry)
+	if err != nil {
+		return
+	}
+	MailQueueDecreaseCounter(1)
 	return
 }
 
