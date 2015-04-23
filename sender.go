@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const EXTRACTOR_MAX_COUNT = 1000
+const EXTRACTOR_MAX_COUNT = 5
 
 var (
 	SenderLimiter    chan interface{}
