@@ -12,7 +12,7 @@ func GetErrorQueueLength() int64 {
 }
 
 func GetMailQueueLength() int64 {
-	return int64(len(MailDirectChannel))
+	return int64(len(MailDirectChannel))+MailQueueCounter
 }
 
 var (

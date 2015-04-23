@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-const EXTRACTOR_MAX_COUNT = 100
+const EXTRACTOR_MAX_COUNT = 1000
 
 var (
-	SenderLimiter chan interface{}
+	SenderLimiter    chan interface{}
 	ExtractorLimiter chan interface{}
 )
 
@@ -50,7 +50,8 @@ func CloneMailers() {
 							log.Error("error reading message from Mail Queue DB: %s", err.Error())
 						}
 						if success {
-							MailDirectChannel <- entry
+							SenderLimiter <- 0
+							go SendMail(entry)
 						}
 					}()
 				}
