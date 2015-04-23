@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-const ERRORQUEUETHRESHOLD = 100
-
 var (
 	SenderLimiter chan interface{}
 )
@@ -74,16 +72,16 @@ func SendMail(entry QueueEntry) {
 			entry.ErrorCount += 1
 			entry.Error = smtpError
 			if entry.ErrorCount >= conf.DeferredMailMaxErrors {
-				log.Error("msg %s DROPPED defer limit =(%d/%d): %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
+				log.Error("msg %s DEFER LIMIT=(%d/%d) DROPPED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
 				return
 			}
 			entry.QueueTime = time.Now()
 			entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay) * time.Second)
 			err := PutError(entry)
 			if err != nil {
-				log.Error("msg %s DROPPED, can't defer cause of %s: %s", entry.String(), err.Error(), smtpError.Error())
+				log.Error("msg %s can't be deferred - %s DROPPED: %s", entry.String(), err.Error(), smtpError.Error())
 			}
-			log.Error("msg %s DEFERRED (%d/%d): %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
+			log.Error("msg %s (%d/%d) (next attempt at %s ) DEFERRED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, smtpError.Error())
 		}
 	} else {
 		log.Info("msg %s SENT%s: %s", entry.String(), signed, ErrStatusSuccess.Error())

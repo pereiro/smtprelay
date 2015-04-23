@@ -16,15 +16,16 @@ func GetMailQueueLength() int64 {
 }
 
 var (
-	ErrorQueueCounter int64
+	ErrorQueueCounter   int64
 	MailHandlersCounter int64
 	MailSendersCounter  int64
 )
 
 type QueueStats struct {
-	ErrorQueueCounter  int64
-	MailQueueCounter   int64
-	ErrorBufferCounter int
+	OverallCounter      int64
+	ErrorQueueCounter   int64
+	MailQueueCounter    int64
+	ErrorBufferCounter  int
 	MailHandlersCounter int64
 	MailSendersCounter  int64
 	DBStats             bolt.TxStats
@@ -43,6 +44,7 @@ func GetStatistics() (data []byte, err error) {
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
 	stats.ErrorBufferCounter = len(ErrorQueueChannel)
+	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + int64(stats.ErrorBufferCounter)
 	err = db.View(func(tx *bolt.Tx) error {
 		stats.DBStats = tx.Stats()
 		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()

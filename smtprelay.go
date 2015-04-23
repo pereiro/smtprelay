@@ -90,7 +90,7 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 	return func(peer smtpd.Peer, env smtpd.Envelope) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Critical("PANIC, message DROPPED:%s", r)
+				log.Critical("PANIC, message DROPPED: %s", r)
 				err = ErrMessageErrorUnknown
 			}
 		}()
@@ -102,14 +102,14 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 	msg, err := ParseMessage(env.Recipients, env.Sender, env.Data)
 	if err != nil {
 		var rcpt = strings.Join(env.Recipients, ";")
-		log.Error("incorrect msg DROPPED from %s (sender:%s;rcpt:%s) - %s: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
+		log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
 		return ErrMessageError
 	}
 
-	log.Info("msg %s RECEIVED from %s", msg.String(), peer.Addr.String())
+	log.Info("msg %s from %s RECEIVED", msg.String(), peer.Addr.String())
 
 	if len(env.Recipients) > conf.MaxRecipients || len(env.Recipients) == 0 {
-		log.Error("message %s DROPPED, rcpt count limited to %d: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+		log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
 		return ErrTooManyRecipients
 	}
 
@@ -119,7 +119,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 		mailServer, err := lookupMailServer(strings.ToLower(domain))
 		if err != nil {
-			log.Error("message %s DROPPED, can't get MX record for %s - %s: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 			return ErrDomainNotFound
 		}
 
@@ -143,7 +143,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 				defer MailHandlersDecreaseCounter(1)
 				err = PutMail(entry)
 				if err != nil {
-					log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
+					log.Error("msg %s, MQ error - %s DROPPED: %s", msg.String(), err.Error(), ErrServerError.Error())
 					return
 				}
 				log.Info("msg %s QUEUED", msg.String())

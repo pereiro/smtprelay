@@ -12,12 +12,11 @@ import (
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
 const MAX_QUEUE_BUFFER_SIZE = 1000000
-const MAX_TRANSACTION_LENGTH = 1
+const MAX_TRANSACTION_LENGTH = 1000
 
 var (
 	db                *bolt.DB
 	MailDirectChannel chan QueueEntry
-	MailQueueChannel  chan QueueEntry
 	ErrorQueueChannel chan QueueEntry
 )
 
@@ -40,7 +39,6 @@ func (e QueueEntry) String() string {
 
 func InitQueues(filename string) error {
 	MailDirectChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
-	MailQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	ErrorQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
 	var err error
 	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
@@ -122,7 +120,7 @@ func PutError(entry QueueEntry) error {
 }
 
 func ExtractError(ch chan QueueEntry) error {
-	err, count := Extract(ch, ERROR_BUCKET_NAME, false)
+	err, count := Extract(ch, ERROR_BUCKET_NAME, true)
 	if err != nil {
 		return err
 	}
@@ -133,7 +131,7 @@ func ExtractError(ch chan QueueEntry) error {
 func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
 	var err error
 	var count int
-	var outdatedId []QueueEntry
+	var outdatedList []QueueEntry
 
 	now := time.Now()
 
@@ -149,22 +147,22 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 			if checkDate && entry.UnqueueTime.After(now) {
 				continue
 			}
-			outdatedId = append(outdatedId,entry)
+			outdatedList = append(outdatedList, entry)
 		}
 		return nil
 	})
 	if err != nil {
-		return err,0
+		return err, 0
 	}
 
-	if len(outdatedId) == 0 {
-		return nil,0
+	if len(outdatedList) == 0 {
+		return nil, 0
 	}
 
 	return db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(queueName))
 		count = 0
-		for _,entry := range outdatedId {
+		for _, entry := range outdatedList {
 			select {
 			case ch <- entry:
 				{
