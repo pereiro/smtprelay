@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const EXTRACTOR_MAX_COUNT = 10
+
 var (
 	SenderLimiter chan interface{}
 )
@@ -30,8 +32,8 @@ func StartErrorHandler() {
 }
 
 func CloneMailers() {
+	extractorLimiter := make(chan int,EXTRACTOR_MAX_COUNT)
 	for {
-
 		select {
 		case entry := <-MailDirectChannel:
 			SenderLimiter <- 0
@@ -39,13 +41,17 @@ func CloneMailers() {
 		default:
 			{
 				if MailQueueCounter > 0 {
-					entry, success, err := ExtractMail()
-					if err != nil {
-						log.Error("error reading message from Mail Queue DB: %s", err.Error())
-					}
-					if success {
-						MailDirectChannel <- entry
-					}
+					extractorLimiter <-0
+					go func() {
+						defer func(){<- extractorLimiter}()
+						entry, success, err := ExtractMail()
+						if err != nil {
+							log.Error("error reading message from Mail Queue DB: %s", err.Error())
+						}
+						if success {
+							MailDirectChannel <- entry
+						}
+					}()
 				}
 			}
 		}
