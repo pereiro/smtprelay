@@ -55,7 +55,7 @@ func CloneMailers() {
 func SendMail(entry QueueEntry) {
 	MailSendersIncreaseCounter(1)
 	defer func() {
-		MailSenderssDecreaseCounter(1)
+		MailSendersDecreaseCounter(1)
 		<-SenderLimiter
 	}()
 	log.Info("msg %s READY for processing", entry.String())
