@@ -39,7 +39,7 @@ func main() {
 	runtime.GOMAXPROCS(conf.NumCPU)
 
 	if err := InitQueues(conf.QueueFile); err != nil {
-		log.Critical("can't init redis MQ", err.Error())
+		log.Critical("can't init MQ", err.Error())
 		panic(err.Error())
 	}
 	defer CloseQueues()
@@ -60,7 +60,7 @@ func main() {
 	}
 
 	if conf.RelayModeEnabled {
-		log.Info("TEST MODE ENABLED!! All messages will be redirected to %s", conf.RelayServer)
+		log.Info("Relay mode enabled! All messages will be redirected to %s", conf.RelayServer)
 	}
 	//IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
 

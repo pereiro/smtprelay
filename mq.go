@@ -12,7 +12,7 @@ import (
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
 const MAX_QUEUE_BUFFER_SIZE = 1000000
-const MAX_TRANSACTION_LENGTH = 1000
+const MAX_TRANSACTION_LENGTH = 1
 
 var (
 	db                *bolt.DB
@@ -133,14 +133,14 @@ func ExtractError(ch chan QueueEntry) error {
 func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
 	var err error
 	var count int
-	now := time.Now()
-	return db.Update(func(tx *bolt.Tx) error {
+	var outdatedId []QueueEntry
 
+	now := time.Now()
+
+	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(queueName))
 		cursor := bucket.Cursor()
-		count = 0
-
-		for key, data := cursor.First(); key != nil && count <= MAX_TRANSACTION_LENGTH; key, data = cursor.Next() {
+		for key, data := cursor.First(); key != nil && count < MAX_TRANSACTION_LENGTH; key, data = cursor.Next() {
 			var entry QueueEntry
 			err = json.Unmarshal(data, &entry)
 			if err != nil {
@@ -149,10 +149,26 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 			if checkDate && entry.UnqueueTime.After(now) {
 				continue
 			}
+			outdatedId = append(outdatedId,entry)
+		}
+		return nil
+	})
+	if err != nil {
+		return err,0
+	}
+
+	if len(outdatedId) == 0 {
+		return nil,0
+	}
+
+	return db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(queueName))
+		count = 0
+		for _,entry := range outdatedId {
 			select {
 			case ch <- entry:
 				{
-					err = bucket.Delete(key)
+					err = bucket.Delete([]byte(entry.MessageId))
 					if err != nil {
 						return err
 					}
@@ -163,6 +179,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 				return nil
 			}
 		}
+
 		return nil
 	}), count
 }
