@@ -38,7 +38,7 @@ func main() {
 
 	runtime.GOMAXPROCS(conf.NumCPU)
 
-	if err := InitQueues(conf.QueueFile); err != nil {
+	if err := InitQueues(conf.ErrorQueueFile, conf.MailQueueFile); err != nil {
 		log.Critical("can't init MQ", err.Error())
 		panic(err.Error())
 	}

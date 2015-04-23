@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 )
 
-var Config Conf
-
 type Conf struct {
 	ServerHostName          string
 	ListenPort              string
@@ -18,8 +16,9 @@ type Conf struct {
 	RelayModeEnabled        bool
 	RelayServer             string
 	NumCPU                  int
-    QueueFile                  string
-	StatisticPort         string
+	ErrorQueueFile          string
+	MailQueueFile           string
+	StatisticPort           string
 	DeferredMailDelay       int
 	DeferredMailMaxErrors   int
 	MaxRecipients           int

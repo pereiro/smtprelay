@@ -17,6 +17,7 @@ func GetMailQueueLength() int64 {
 
 var (
 	ErrorQueueCounter   int64
+	MailQueueCounter    int64
 	MailHandlersCounter int64
 	MailSendersCounter  int64
 )
@@ -25,12 +26,12 @@ type QueueStats struct {
 	OverallCounter      int64
 	ErrorQueueCounter   int64
 	MailQueueCounter    int64
-	ErrorBufferCounter  int
+	ErrorBufferCounter  int64
+	MailBufferCounter	int64
 	MailHandlersCounter int64
 	MailSendersCounter  int64
-	DBStats             bolt.TxStats
-	MailStats           bolt.BucketStats
-	ErrorStats          bolt.BucketStats
+	MailDBStats           bolt.BucketStats
+	ErrorDBStats          bolt.BucketStats
 }
 
 func SetCounterInitialValues(errors int64, mails int64) {
@@ -40,15 +41,22 @@ func SetCounterInitialValues(errors int64, mails int64) {
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
 	stats.ErrorQueueCounter = ErrorQueueCounter
-	stats.MailQueueCounter = int64(len(MailDirectChannel))
+	stats.MailQueueCounter = MailQueueCounter
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
-	stats.ErrorBufferCounter = len(ErrorQueueChannel)
-	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + int64(stats.ErrorBufferCounter)
-	err = db.View(func(tx *bolt.Tx) error {
-		stats.DBStats = tx.Stats()
-		stats.MailStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
-		stats.ErrorStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
+	stats.ErrorBufferCounter = int64(len(ErrorQueueChannel))
+	stats.MailBufferCounter = int64(len(MailDirectChannel))
+	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter +stats.ErrorBufferCounter +stats.MailBufferCounter
+
+	err = errorDb.View(func(tx *bolt.Tx) error {
+		stats.ErrorDBStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
+		return nil
+	})
+	if err != nil {
+		return data, err
+	}
+	err = mailDb.View(func(tx *bolt.Tx) error {
+		stats.MailDBStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
 		return nil
 	})
 	if err != nil {
@@ -67,6 +75,14 @@ func QueueIncreaseCounter(counter *int64, count int) {
 
 func ErrorQueueDecreaseCounter(count int) {
 	atomic.AddInt64(&ErrorQueueCounter, -int64(count))
+}
+
+func MailQueueIncreaseCounter(count int) {
+	atomic.AddInt64(&MailQueueCounter, int64(count))
+}
+
+func MailQueueDecreaseCounter(count int) {
+	atomic.AddInt64(&MailQueueCounter, -int64(count))
 }
 
 func MailHandlersIncreaseCounter(count int) {

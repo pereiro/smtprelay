@@ -24,7 +24,7 @@ func StartErrorHandler() {
 		}
 		err := ExtractError(MailDirectChannel)
 		if err != nil {
-			log.Error("error reading msg from Error Queue DB:%s", err.Error())
+			log.Error("error reading msg from Error Queue DB: %s", err.Error())
 		}
 	}
 }
@@ -32,8 +32,23 @@ func StartErrorHandler() {
 func CloneMailers() {
 	for {
 		SenderLimiter <- 0
-		entry := <-MailDirectChannel
-		go SendMail(entry)
+		select {
+		case entry := <-MailDirectChannel:
+			go SendMail(entry)
+		default:
+			{
+				if MailQueueCounter > 0 {
+					entry, success, err := ExtractMail()
+					if err != nil {
+						log.Error("error reading message from Mail Queue DB: %s", err.Error())
+					}
+					if success {
+						go SendMail(entry)
+					}
+				}
+			}
+		}
+
 	}
 }
 

@@ -11,11 +11,13 @@ import (
 
 const MAIL_BUCKET_NAME = "MAIL"
 const ERROR_BUCKET_NAME = "ERROR"
-const MAX_QUEUE_BUFFER_SIZE = 1000000
+const MAX_ERROR_BUFFER_SIZE = 1000000
+const MAX_MAIL_BUFFER_SIZE = 1000
 const MAX_TRANSACTION_LENGTH = 1000
 
 var (
-	db                *bolt.DB
+	errorDb           *bolt.DB
+	mailDb            *bolt.DB
 	MailDirectChannel chan QueueEntry
 	ErrorQueueChannel chan QueueEntry
 )
@@ -37,37 +39,51 @@ func (e QueueEntry) String() string {
 	return fmt.Sprintf("(message-id:%s;from:%s;to:%s)", e.MessageId, e.Sender, strings.Join(e.Recipients, ";"))
 }
 
-func InitQueues(filename string) error {
-	MailDirectChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
-	ErrorQueueChannel = make(chan QueueEntry, MAX_QUEUE_BUFFER_SIZE)
+func InitQueues(errorFilename string, mailFilename string) error {
+	MailDirectChannel = make(chan QueueEntry, MAX_MAIL_BUFFER_SIZE)
+	ErrorQueueChannel = make(chan QueueEntry, MAX_ERROR_BUFFER_SIZE)
 	var err error
-	db, err = bolt.Open(filename, 0600, &bolt.Options{Timeout: 2 * time.Second})
+	errorDb, err = bolt.Open(errorFilename, 0600, &bolt.Options{Timeout: 2 * time.Second})
 	if err != nil {
 		return err
 	}
 
-	err = db.Update(func(tx *bolt.Tx) error {
-		mBucket, err := tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
-		if err != nil {
-			return err
-		}
+	mailDb, err = bolt.Open(mailFilename, 0600, &bolt.Options{Timeout: 2 * time.Second})
+	if err != nil {
+		return err
+	}
+
+	var errorCounter int64
+	var mailCounter int64
+
+	err = errorDb.Update(func(tx *bolt.Tx) error {
 		eBucket, err := tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
 		if err != nil {
 			return err
 		}
-		SetCounterInitialValues(int64(eBucket.Stats().KeyN), int64(mBucket.Stats().KeyN))
+		errorCounter = int64(eBucket.Stats().KeyN)
+		return nil
+	})
+
+	err = mailDb.Update(func(tx *bolt.Tx) error {
+		mBucket, err := tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
+		if err != nil {
+			return err
+		}
+		mailCounter = int64(mBucket.Stats().KeyN)
 		return nil
 	})
 
 	if err != nil {
 		return err
 	}
+	SetCounterInitialValues(errorCounter, mailCounter)
 	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 2000)
 	return nil
 }
 
 func CloseQueues() {
-	db.Close()
+	errorDb.Close()
 }
 
 func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, bufferSize int) {
@@ -87,7 +103,7 @@ func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, buf
 			}
 		}
 
-		err := db.Update(func(tx *bolt.Tx) error {
+		err := errorDb.Update(func(tx *bolt.Tx) error {
 			for _, entry := range entries {
 				b := tx.Bucket([]byte(queueName))
 				json, err := json.Marshal(entry)
@@ -110,8 +126,52 @@ func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, buf
 }
 
 func PutMail(entry QueueEntry) error {
-	MailDirectChannel <- entry
+	select {
+	case MailDirectChannel <- entry:
+	default:
+		{
+			json, err := json.Marshal(entry)
+			if err != nil {
+				return err
+			}
+			err = mailDb.Update(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte(MAIL_BUCKET_NAME))
+				err = b.Put([]byte(entry.MessageId), json)
+				if err != nil {
+					return err
+				}
+				MailQueueIncreaseCounter(1)
+				return nil
+			})
+		}
+	}
 	return nil
+}
+
+func ExtractMail() (entry QueueEntry, success bool, err error) {
+	success = false
+	var data []byte
+	var key []byte
+	err = mailDb.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(MAIL_BUCKET_NAME))
+		c := b.Cursor()
+		key, data = c.First()
+		if err != nil {
+			return err
+		}
+		if key == nil {
+			return nil
+		}
+		err := b.Delete(key)
+		if err != nil {
+			return err
+		}
+		success = true
+		MailQueueDecreaseCounter(1)
+		return nil
+	})
+	err = json.Unmarshal(data, &entry)
+	return
 }
 
 func PutError(entry QueueEntry) error {
@@ -135,7 +195,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 
 	now := time.Now()
 
-	err = db.View(func(tx *bolt.Tx) error {
+	err = errorDb.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(queueName))
 		cursor := bucket.Cursor()
 		for key, data := cursor.First(); key != nil && count < MAX_TRANSACTION_LENGTH; key, data = cursor.Next() {
@@ -159,7 +219,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 		return nil, 0
 	}
 
-	return db.Update(func(tx *bolt.Tx) error {
+	return errorDb.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(queueName))
 		count = 0
 		for _, entry := range outdatedList {
