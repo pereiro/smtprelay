@@ -33,6 +33,7 @@ type QueueStats struct {
 	MailExtractorsCounter int64
 	MailDBStats           bolt.BucketStats
 	ErrorDBStats          bolt.BucketStats
+	MailMetaData          QueueMetaData
 }
 
 func SetCounterInitialValues(errors int64, mails int64) {
@@ -50,6 +51,11 @@ func GetStatistics() (data []byte, err error) {
 	stats.MailBufferCounter = int64(len(MailDirectChannel))
 	stats.MailExtractorsCounter = int64(len(ExtractorLimiter))
 	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + stats.ErrorBufferCounter + stats.MailBufferCounter
+	mailmeta, err := GetMailMetaData()
+	if err != nil {
+		return data, err
+	}
+	stats.MailMetaData = *mailmeta
 
 	err = errorDb.View(func(tx *bolt.Tx) error {
 		stats.ErrorDBStats = tx.Bucket([]byte(DATA_BUCKET)).Stats()

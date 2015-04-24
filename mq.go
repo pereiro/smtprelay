@@ -173,6 +173,18 @@ func GetMetaData(b *bolt.Bucket) (*QueueMetaData, error) {
 	return &metadata, nil
 }
 
+func GetMailMetaData() (metadata *QueueMetaData, err error) {
+	err = mailDb.View(func(tx *bolt.Tx) error {
+		mBucket := tx.Bucket(METADATA_BUCKET)
+		metadata, err = GetMetaData(mBucket)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	return
+}
+
 func PutMetadata(b *bolt.Bucket, m *QueueMetaData) error {
 	metadataBytes, err := json.Marshal(m)
 	if err != nil {
@@ -216,13 +228,13 @@ func Push(entry QueueEntry, db *bolt.DB) error {
 			return err
 		}
 
-		MailQueueIncreaseCounter(1)
 		return nil
 	})
+	MailQueueIncreaseCounter(1)
 	return err
 }
 
-func Pop(db *bolt.DB) (QueueEntry,bool, error) {
+func Pop(db *bolt.DB) (QueueEntry, bool, error) {
 	var bytes []byte
 	var entry QueueEntry
 
@@ -247,19 +259,20 @@ func Pop(db *bolt.DB) (QueueEntry,bool, error) {
 		if err != nil {
 			return err
 		}
+		MailQueueDecreaseCounter(1)
 		return nil
 	})
 	if err != nil {
-		return entry,false,err
+		return entry, false, err
 	}
 	if bytes == nil {
-		return entry,false,err
+		return entry, false, err
 	}
 	err = json.Unmarshal(bytes, &entry)
 	if err != nil {
-		return entry,false,err
+		return entry, false, err
 	}
-	return entry,true, nil
+	return entry, true, nil
 
 }
 
@@ -272,7 +285,6 @@ func PushMail(entry QueueEntry) error {
 			if err != nil {
 				log.Error("error pushing mail:%s", err.Error())
 			} else {
-				MailQueueIncreaseCounter(1)
 			}
 		}
 	}
@@ -281,14 +293,13 @@ func PushMail(entry QueueEntry) error {
 
 func PopMail() (entry QueueEntry, success bool, err error) {
 	success = false
-	entry,success,err = Pop(mailDb)
+	entry, success, err = Pop(mailDb)
 	if err != nil {
 		return entry, false, err
 	}
 	if !success {
-		return entry,false,nil
+		return entry, false, nil
 	}
-	MailQueueDecreaseCounter(1)
 	return entry, true, err
 }
 
