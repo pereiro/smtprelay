@@ -1,18 +1,19 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"smtprelay/smtpd"
 	"strings"
 	"time"
-	"encoding/binary"
 )
 
 var DATA_BUCKET = []byte("Q")
 var METADATA_BUCKET = []byte("M")
 var META_KEY = []byte("m")
+
 const MAX_ERROR_BUFFER_SIZE = 1000000
 const MAX_MAIL_BUFFER_SIZE = 1000
 const MAX_TRANSACTION_LENGTH = 1000
@@ -25,9 +26,9 @@ var (
 )
 
 type QueueMetaData struct {
-	FirstKey uint64
+	FirstKey   uint64
 	CurrentKey uint64
-	LastKey uint64
+	LastKey    uint64
 }
 
 type QueueEntry struct {
@@ -106,20 +107,19 @@ func (m *QueueMetaData) Empty() bool {
 func InitMetaData(b *bolt.Bucket) error {
 	var metadata QueueMetaData
 	value := b.Get(META_KEY)
-	if value== nil {
+	if value == nil {
 		metadata = QueueMetaData{}
-		bytes,err := json.Marshal(metadata)
+		bytes, err := json.Marshal(metadata)
 		if err != nil {
 			return err
 		}
-		err = b.Put(META_KEY,bytes)
+		err = b.Put(META_KEY, bytes)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
-
 
 func CloseQueues() {
 	errorDb.Close()
@@ -164,35 +164,35 @@ func QueueHandler(ch chan QueueEntry, queueName []byte, queueCounter *int64, buf
 	}
 }
 
-func GetMetaData(b *bolt.Bucket) (*QueueMetaData,error) {
+func GetMetaData(b *bolt.Bucket) (*QueueMetaData, error) {
 	var metadata QueueMetaData
 	value := b.Get(META_KEY)
 	if err := json.Unmarshal(value, &metadata); err != nil {
 		return nil, err
 	}
-	return &metadata,nil
+	return &metadata, nil
 }
 
-func PutMetadata(b *bolt.Bucket,m *QueueMetaData) error {
-	metadataBytes,err := json.Marshal(m)
+func PutMetadata(b *bolt.Bucket, m *QueueMetaData) error {
+	metadataBytes, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
 
-	err = b.Put(META_KEY,metadataBytes)
+	err = b.Put(META_KEY, metadataBytes)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func GetKey(key uint64) []byte{
-	keyBytes := make([]byte,8)
-	binary.PutUvarint(keyBytes,key)
+func GetKey(key uint64) []byte {
+	keyBytes := make([]byte, 8)
+	binary.PutUvarint(keyBytes, key)
 	return keyBytes
 }
 
-func Push(entry QueueEntry,db *bolt.DB) error{
+func Push(entry QueueEntry, db *bolt.DB) error {
 	bytes, err := json.Marshal(entry)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func Push(entry QueueEntry,db *bolt.DB) error{
 	err = db.Update(func(tx *bolt.Tx) error {
 		dBucket := tx.Bucket(DATA_BUCKET)
 		mBucket := tx.Bucket(METADATA_BUCKET)
-		metadata,err := GetMetaData(mBucket)
+		metadata, err := GetMetaData(mBucket)
 		if err != nil {
 			return err
 		}
@@ -211,7 +211,7 @@ func Push(entry QueueEntry,db *bolt.DB) error{
 		}
 		metadata.LastKey += 1
 
-		err = PutMetadata(mBucket,metadata)
+		err = PutMetadata(mBucket, metadata)
 		if err != nil {
 			return err
 		}
@@ -222,57 +222,56 @@ func Push(entry QueueEntry,db *bolt.DB) error{
 	return err
 }
 
-func Pop(db *bolt.DB) (*QueueEntry,error){
+func Pop(db *bolt.DB) (QueueEntry,bool, error) {
 	var bytes []byte
 	var entry QueueEntry
 
-	err := db.Update(func (tx *bolt.Tx) error {
+	err := db.Update(func(tx *bolt.Tx) error {
 		dBucket := tx.Bucket(DATA_BUCKET)
 		mBucket := tx.Bucket(METADATA_BUCKET)
-		metadata,err := GetMetaData(mBucket)
+		metadata, err := GetMetaData(mBucket)
 		if err != nil {
 			return err
 		}
-		if metadata.Empty(){
+		if metadata.Empty() {
 			return nil
 		}
-		bytes:= dBucket.Get(GetKey(metadata.CurrentKey))
-		if bytes == nil{
+		bytes := dBucket.Get(GetKey(metadata.CurrentKey))
+		if bytes == nil {
 			return nil
 		}
 
-		metadata.CurrentKey+=1
+		metadata.CurrentKey += 1
 
-		err = PutMetadata(mBucket,metadata)
+		err = PutMetadata(mBucket, metadata)
 		if err != nil {
 			return err
 		}
 		return nil
 	})
 	if err != nil {
-		return nil,err
+		return entry,false,err
 	}
-	if bytes == nil{
-		return nil,nil
+	if bytes == nil {
+		return entry,false,err
 	}
-	err = json.Unmarshal(bytes,&entry)
+	err = json.Unmarshal(bytes, &entry)
 	if err != nil {
-		return nil,err
+		return entry,false,err
 	}
-	return &entry,nil
+	return entry,true, nil
 
 }
-
 
 func PushMail(entry QueueEntry) error {
 	select {
 	case MailDirectChannel <- entry:
 	default:
 		{
-			err := Push(entry,mailDb)
+			err := Push(entry, mailDb)
 			if err != nil {
-				log.Error("error pushing mail:%s",err.Error())
-			}else{
+				log.Error("error pushing mail:%s", err.Error())
+			} else {
 				MailQueueIncreaseCounter(1)
 			}
 		}
@@ -282,15 +281,15 @@ func PushMail(entry QueueEntry) error {
 
 func PopMail() (entry QueueEntry, success bool, err error) {
 	success = false
-	var e *QueueEntry
-	e,err = Pop(mailDb)
+	entry,success,err = Pop(mailDb)
 	if err != nil {
-		return entry,false,err
-	}else{
-	success = true
-	MailQueueDecreaseCounter(1)
+		return entry, false, err
 	}
-	return *e,success,err
+	if !success {
+		return entry,false,nil
+	}
+	MailQueueDecreaseCounter(1)
+	return entry, true, err
 }
 
 func PutError(entry QueueEntry) error {
