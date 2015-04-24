@@ -93,11 +93,11 @@ func InitQueues(errorFilename string, mailFilename string) error {
 		if err != nil {
 			return err
 		}
-		metadata,err := GetMetaData(mmBucket)
+		metadata, err := GetMetaData(mmBucket)
 		if err != nil {
 			return err
 		}
-		mailCounter = int64(metadata.LastKey-metadata.CurrentKey)
+		mailCounter = int64(metadata.LastKey - metadata.CurrentKey)
 		return nil
 	})
 
