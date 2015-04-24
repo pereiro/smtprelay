@@ -7,10 +7,12 @@ import (
 	"smtprelay/smtpd"
 	"strings"
 	"time"
+	"encoding/binary"
 )
 
-const MAIL_BUCKET_NAME = "MAIL"
-const ERROR_BUCKET_NAME = "ERROR"
+var DATA_BUCKET = []byte("Q")
+var METADATA_BUCKET = []byte("M")
+var META_KEY = []byte("m")
 const MAX_ERROR_BUFFER_SIZE = 1000000
 const MAX_MAIL_BUFFER_SIZE = 1000
 const MAX_TRANSACTION_LENGTH = 1000
@@ -21,6 +23,12 @@ var (
 	MailDirectChannel chan QueueEntry
 	ErrorQueueChannel chan QueueEntry
 )
+
+type QueueMetaData struct {
+	FirstKey uint64
+	CurrentKey uint64
+	LastKey uint64
+}
 
 type QueueEntry struct {
 	MailServer   string
@@ -57,36 +65,67 @@ func InitQueues(errorFilename string, mailFilename string) error {
 	var mailCounter int64
 
 	err = errorDb.Update(func(tx *bolt.Tx) error {
-		eBucket, err := tx.CreateBucketIfNotExists([]byte(ERROR_BUCKET_NAME))
+		eBucket, err := tx.CreateBucketIfNotExists(DATA_BUCKET)
 		if err != nil {
 			return err
 		}
 		errorCounter = int64(eBucket.Stats().KeyN)
-		return nil
+		emBucket, err := tx.CreateBucketIfNotExists(METADATA_BUCKET)
+		if err != nil {
+			return err
+		}
+		return InitMetaData(emBucket)
+
 	})
 
 	err = mailDb.Update(func(tx *bolt.Tx) error {
-		mBucket, err := tx.CreateBucketIfNotExists([]byte(MAIL_BUCKET_NAME))
+		mBucket, err := tx.CreateBucketIfNotExists(DATA_BUCKET)
 		if err != nil {
 			return err
 		}
 		mailCounter = int64(mBucket.Stats().KeyN)
-		return nil
+		mmBucket, err := tx.CreateBucketIfNotExists(METADATA_BUCKET)
+		if err != nil {
+			return err
+		}
+		return InitMetaData(mmBucket)
 	})
 
 	if err != nil {
 		return err
 	}
 	SetCounterInitialValues(errorCounter, mailCounter)
-	go QueueHandler(ErrorQueueChannel, ERROR_BUCKET_NAME, &ErrorQueueCounter, 2000)
+	go QueueHandler(ErrorQueueChannel, DATA_BUCKET, &ErrorQueueCounter, 2000)
 	return nil
 }
+
+func (m *QueueMetaData) Empty() bool {
+	return m.CurrentKey == m.LastKey
+}
+
+func InitMetaData(b *bolt.Bucket) error {
+	var metadata QueueMetaData
+	value := b.Get(META_KEY)
+	if value== nil {
+		metadata = QueueMetaData{}
+		bytes,err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+		err = b.Put(META_KEY,bytes)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 
 func CloseQueues() {
 	errorDb.Close()
 }
 
-func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, bufferSize int) {
+func QueueHandler(ch chan QueueEntry, queueName []byte, queueCounter *int64, bufferSize int) {
 	for {
 		var entries []QueueEntry
 		var entry QueueEntry
@@ -125,59 +164,133 @@ func QueueHandler(ch chan QueueEntry, queueName string, queueCounter *int64, buf
 	}
 }
 
-func PutMail(entry QueueEntry) error {
+func GetMetaData(b *bolt.Bucket) (*QueueMetaData,error) {
+	var metadata QueueMetaData
+	value := b.Get(META_KEY)
+	if err := json.Unmarshal(value, &metadata); err != nil {
+		return nil, err
+	}
+	return &metadata,nil
+}
+
+func PutMetadata(b *bolt.Bucket,m *QueueMetaData) error {
+	metadataBytes,err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	err = b.Put(META_KEY,metadataBytes)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetKey(key uint64) []byte{
+	keyBytes := make([]byte,8)
+	binary.PutUvarint(keyBytes,key)
+	return keyBytes
+}
+
+func Push(entry QueueEntry,db *bolt.DB) error{
+	bytes, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+	err = db.Update(func(tx *bolt.Tx) error {
+		dBucket := tx.Bucket(DATA_BUCKET)
+		mBucket := tx.Bucket(METADATA_BUCKET)
+		metadata,err := GetMetaData(mBucket)
+		if err != nil {
+			return err
+		}
+
+		err = dBucket.Put(GetKey(metadata.LastKey), bytes)
+		if err != nil {
+			return err
+		}
+		metadata.LastKey += 1
+
+		err = PutMetadata(mBucket,metadata)
+		if err != nil {
+			return err
+		}
+
+		MailQueueIncreaseCounter(1)
+		return nil
+	})
+	return err
+}
+
+func Pop(db *bolt.DB) (*QueueEntry,error){
+	var bytes []byte
+	var entry QueueEntry
+
+	err := db.Update(func (tx *bolt.Tx) error {
+		dBucket := tx.Bucket(DATA_BUCKET)
+		mBucket := tx.Bucket(METADATA_BUCKET)
+		metadata,err := GetMetaData(mBucket)
+		if err != nil {
+			return err
+		}
+		if metadata.Empty(){
+			return nil
+		}
+		bytes:= dBucket.Get(GetKey(metadata.CurrentKey))
+		if bytes == nil{
+			return nil
+		}
+
+		metadata.CurrentKey+=1
+
+		err = PutMetadata(mBucket,metadata)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil,err
+	}
+	if bytes == nil{
+		return nil,nil
+	}
+	err = json.Unmarshal(bytes,&entry)
+	if err != nil {
+		return nil,err
+	}
+	return &entry,nil
+
+}
+
+
+func PushMail(entry QueueEntry) error {
 	select {
 	case MailDirectChannel <- entry:
 	default:
 		{
-			json, err := json.Marshal(entry)
+			err := Push(entry,mailDb)
 			if err != nil {
-				return err
-			}
-			err = mailDb.Update(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte(MAIL_BUCKET_NAME))
-				err = b.Put([]byte(entry.MessageId), json)
-				if err != nil {
-					return err
-				}
+				log.Error("error pushing mail:%s",err.Error())
+			}else{
 				MailQueueIncreaseCounter(1)
-				return nil
-			})
+			}
 		}
 	}
 	return nil
 }
 
-func ExtractMail() (entry QueueEntry, success bool, err error) {
+func PopMail() (entry QueueEntry, success bool, err error) {
 	success = false
-	var data []byte
-	var key []byte
-	err = mailDb.Batch(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(MAIL_BUCKET_NAME))
-		c := b.Cursor()
-		key, data = c.First()
-		if err != nil {
-			return err
-		}
-		if key == nil {
-			return nil
-		}
-		err := b.Delete(key)
-		if err != nil {
-			return err
-		}
-		success = true
-		return nil
-	})
+	var e *QueueEntry
+	e,err = Pop(mailDb)
 	if err != nil {
-		return
-	}
-	err = json.Unmarshal(data, &entry)
-	if err != nil {
-		return
-	}
+		return entry,false,err
+	}else{
+	success = true
 	MailQueueDecreaseCounter(1)
-	return
+	}
+	return *e,success,err
 }
 
 func PutError(entry QueueEntry) error {
@@ -186,7 +299,7 @@ func PutError(entry QueueEntry) error {
 }
 
 func ExtractError(ch chan QueueEntry) error {
-	err, count := Extract(ch, ERROR_BUCKET_NAME, true)
+	err, count := Extract(ch, DATA_BUCKET, true)
 	if err != nil {
 		return err
 	}
@@ -194,7 +307,7 @@ func ExtractError(ch chan QueueEntry) error {
 	return nil
 }
 
-func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) {
+func Extract(ch chan QueueEntry, queueName []byte, checkDate bool) (error, int) {
 	var err error
 	var count int
 	var outdatedList []QueueEntry
@@ -202,7 +315,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 	now := time.Now()
 
 	err = errorDb.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(queueName))
+		bucket := tx.Bucket(queueName)
 		cursor := bucket.Cursor()
 		for key, data := cursor.First(); key != nil && count < MAX_TRANSACTION_LENGTH; key, data = cursor.Next() {
 			var entry QueueEntry
@@ -226,7 +339,7 @@ func Extract(ch chan QueueEntry, queueName string, checkDate bool) (error, int) 
 	}
 
 	return errorDb.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(queueName))
+		bucket := tx.Bucket(queueName)
 		count = 0
 		for _, entry := range outdatedList {
 			select {

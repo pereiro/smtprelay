@@ -141,7 +141,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 			go func() {
 				MailHandlersIncreaseCounter(1)
 				defer MailHandlersDecreaseCounter(1)
-				err = PutMail(entry)
+				err = PushMail(entry)
 				if err != nil {
 					log.Error("msg %s, MQ error - %s DROPPED: %s", msg.String(), err.Error(), ErrServerError.Error())
 					return

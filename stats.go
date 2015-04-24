@@ -52,14 +52,14 @@ func GetStatistics() (data []byte, err error) {
 	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + stats.ErrorBufferCounter + stats.MailBufferCounter
 
 	err = errorDb.View(func(tx *bolt.Tx) error {
-		stats.ErrorDBStats = tx.Bucket([]byte(ERROR_BUCKET_NAME)).Stats()
+		stats.ErrorDBStats = tx.Bucket([]byte(DATA_BUCKET)).Stats()
 		return nil
 	})
 	if err != nil {
 		return data, err
 	}
 	err = mailDb.View(func(tx *bolt.Tx) error {
-		stats.MailDBStats = tx.Bucket([]byte(MAIL_BUCKET_NAME)).Stats()
+		stats.MailDBStats = tx.Bucket([]byte(DATA_BUCKET)).Stats()
 		return nil
 	})
 	if err != nil {

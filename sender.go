@@ -45,7 +45,7 @@ func CloneMailers() {
 					ExtractorLimiter <- 0
 					go func() {
 						defer func() { <-ExtractorLimiter }()
-						entry, success, err := ExtractMail()
+						entry, success, err := PopMail()
 						if err != nil {
 							log.Error("error reading message from Mail Queue DB: %s", err.Error())
 						}
