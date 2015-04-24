@@ -48,6 +48,7 @@ func CloneMailers() {
 						entry, success, err := PopMail()
 						if err != nil {
 							log.Error("error reading message from Mail Queue DB: %s", err.Error())
+							return
 						}
 						log.Debug("msg %s POPPED, success = %t", entry.String(), success)
 						if success {

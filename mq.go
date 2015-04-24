@@ -254,14 +254,16 @@ func Pop(db *bolt.DB) (QueueEntry, bool, error) {
 		if err != nil {
 			return err
 		}
+		log.Debug("POPCHECK EMPTY metadata.Current=%d,Last=%d. Empty=%t",metadata.CurrentKey,metadata.LastKey,metadata.Empty())
 		if metadata.Empty() {
 			return nil
 		}
+		log.Debug("POPCHECK BYTES metadata.Current=%d,Last=%d. Empty=%t",metadata.CurrentKey,metadata.LastKey,metadata.Empty())
 		bytes := dBucket.Get(GetKey(metadata.CurrentKey))
 		if bytes == nil {
 			return nil
 		}
-
+		log.Debug("POPCHECK END metadata.Current=%d,Last=%d. Empty=%t",metadata.CurrentKey,metadata.LastKey,metadata.Empty())
 		metadata.CurrentKey += 1
 
 		err = PutMetadata(mBucket, metadata)
