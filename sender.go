@@ -49,7 +49,7 @@ func CloneMailers() {
 						if err != nil {
 							log.Error("error reading message from Mail Queue DB: %s", err.Error())
 						}
-						log.Debug("msg %s POPPED, success = %t", entry, success)
+						log.Debug("msg %s POPPED, success = %t", entry.String(), success)
 						if success {
 							SenderLimiter <- 0
 							go SendMail(entry)
