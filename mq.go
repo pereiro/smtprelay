@@ -80,16 +80,25 @@ func InitQueues(errorFilename string, mailFilename string) error {
 	})
 
 	err = mailDb.Update(func(tx *bolt.Tx) error {
-		mBucket, err := tx.CreateBucketIfNotExists(DATA_BUCKET)
+		_, err := tx.CreateBucketIfNotExists(DATA_BUCKET)
 		if err != nil {
 			return err
 		}
-		mailCounter = int64(mBucket.Stats().KeyN)
+		//mailCounter = int64(mBucket.Stats().KeyN)
 		mmBucket, err := tx.CreateBucketIfNotExists(METADATA_BUCKET)
 		if err != nil {
 			return err
 		}
-		return InitMetaData(mmBucket)
+		err = InitMetaData(mmBucket)
+		if err != nil {
+			return err
+		}
+		metadata,err := GetMetaData(mmBucket)
+		if err != nil {
+			return err
+		}
+		mailCounter = int64(metadata.LastKey-metadata.CurrentKey)
+		return nil
 	})
 
 	if err != nil {
@@ -100,7 +109,7 @@ func InitQueues(errorFilename string, mailFilename string) error {
 	return nil
 }
 
-func (m *QueueMetaData) Empty() bool {
+func (m QueueMetaData) Empty() bool {
 	return m.CurrentKey == m.LastKey
 }
 
