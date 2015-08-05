@@ -2,35 +2,48 @@ package main
 
 import (
 	"flag"
-	"smtprelay/smtpd"
+	"fmt"
+	"os"
 	"runtime"
+	"smtprelay/smtpd"
 	"strings"
 )
 
 var (
 	conf *Conf
+	//IncomingLimiter chan interface{}
 )
 
+const (
+	MAINCONFIGFILENAME = "config.json"
+	LOGCONFIGFILENAME  = "logconfig.xml"
+)
+
+type Flags struct {
+	MainConfigFilePath string
+	LogConfigFilePath  string
+}
+
 func main() {
+	flags := GetFlags()
 
-	var logConfigFile = flag.String("logconfig", "/usr/local/etc/smtprelay/logconfig.xml", "enter path to file with log settings. Default:/usr/local/etc/smtprelay/logconfig.xml")
-	var mainConfigFile = flag.String("config", "/usr/local/etc/smtprelay/config.json", "enter path to config file. Default:/usr/local/etc/smtprelay/config.json")
+	InitLogger(flags.LogConfigFilePath)
 
-	flag.Parse()
-
-	InitLogger(*logConfigFile)
 	log.Info("Starting..")
 	conf = new(Conf)
-	if err := conf.Load(*mainConfigFile); err != nil {
+	if err := conf.Load(flags.MainConfigFilePath); err != nil {
 		log.Critical("can't load config,shut down:", err.Error())
 		panic(err.Error())
 	}
+
 	runtime.GOMAXPROCS(conf.NumCPU)
 
-	if err := InitQueues(); err != nil {
-		log.Critical("can't init redis MQ", err.Error())
+	if err := InitQueues(conf.ErrorQueueFile, conf.MailQueueFile); err != nil {
+		log.Critical("can't init MQ", err.Error())
 		panic(err.Error())
 	}
+	defer CloseQueues()
+
 	log.Info("MQ initialized")
 	go StartStatisticServer()
 	go StartSender()
@@ -47,10 +60,9 @@ func main() {
 	}
 
 	if conf.RelayModeEnabled {
-		log.Info("TEST MODE ENABLED!! All messages will be redirected to %s", conf.RelayServer)
+		log.Info("Relay mode enabled! All messages will be redirected to %s", conf.RelayServer)
 	}
-	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
-	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
+	//IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
 
 	server := &smtpd.Server{
 		Hostname:       conf.ServerHostName,
@@ -59,15 +71,13 @@ func main() {
 		Handler:        handlerPanicProcessor(handler),
 	}
 
+	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
+	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
+
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
 	work := func() {
 		server.ListenAndServe(conf.ListenPort)
-		/*        defer func() {
-		          if r:=recover();r!=nil{
-		              log.Critical("recovered from PANIC:%s",r)
-		          }
-		      }()*/
 	}
 
 	for {
@@ -80,7 +90,7 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 	return func(peer smtpd.Peer, env smtpd.Envelope) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Critical("PANIC, message DROPPED:%s", r)
+				log.Critical("PANIC, message DROPPED: %s", r)
 				err = ErrMessageErrorUnknown
 			}
 		}()
@@ -92,14 +102,14 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 	msg, err := ParseMessage(env.Recipients, env.Sender, env.Data)
 	if err != nil {
 		var rcpt = strings.Join(env.Recipients, ";")
-		log.Error("incorrect msg DROPPED from %s (sender:%s;rcpt:%s) - %s: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
+		log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
 		return ErrMessageError
 	}
 
-	log.Info("msg %s RECEIVED from %s", msg.String(), peer.Addr.String())
+	log.Info("msg %s from %s RECEIVED", msg.String(), peer.Addr.String())
 
 	if len(env.Recipients) > conf.MaxRecipients || len(env.Recipients) == 0 {
-		log.Error("message %s DROPPED, rcpt count limited to %d: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+		log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
 		return ErrTooManyRecipients
 	}
 
@@ -109,7 +119,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 		mailServer, err := lookupMailServer(strings.ToLower(domain))
 		if err != nil {
-			log.Error("message %s DROPPED, can't get MX record for %s - %s: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 			return ErrDomainNotFound
 		}
 
@@ -126,16 +136,36 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 	}
 	for _, entry := range entries {
 		select {
-		case MailMQChannel <- entry:
+		case MailDirectChannel <- entry:
 		default:
-			err = PutMail(entry)
-			if err != nil {
-				log.Error("msg %s DROPPED, MQ error - %s: %s", msg.String(), err.Error(), ErrServerError.Error())
-				return ErrServerError
-			}
-			log.Info("msg %s QUEUED", msg.String())
+			go func() {
+				MailHandlersIncreaseCounter(1)
+				defer MailHandlersDecreaseCounter(1)
+				err = PushMail(entry)
+				if err != nil {
+					log.Error("msg %s, MQ error - %s DROPPED: %s", msg.String(), err.Error(), ErrServerError.Error())
+					return
+				}
+				log.Info("msg %s QUEUED", msg.String())
+			}()
 		}
 	}
 	return nil
 
+}
+
+func GetFlags() (flags Flags) {
+	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
+	flag.Parse()
+	flags.MainConfigFilePath = *workDir + string(os.PathSeparator) + MAINCONFIGFILENAME
+	flags.LogConfigFilePath = *workDir + string(os.PathSeparator) + LOGCONFIGFILENAME
+	if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.MainConfigFilePath)
+		os.Exit(1)
+	}
+	if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.LogConfigFilePath)
+		os.Exit(1)
+	}
+	return flags
 }

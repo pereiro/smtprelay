@@ -1,58 +1,74 @@
 package main
 
 import (
-	"smtprelay/redismq"
 	"smtprelay/smtp"
 	"time"
 )
 
+const EXTRACTOR_MAX_COUNT = 5
+
 var (
-	MailMQChannel chan QueueEntry
+	SenderLimiter    chan interface{}
+	ExtractorLimiter chan interface{}
 )
 
 func StartSender() {
-	MailMQChannel = make(chan QueueEntry, conf.MaxOutcomingConnections)
+	SenderLimiter = make(chan interface{}, conf.MaxOutcomingConnections)
 	go CloneMailers()
 	go StartErrorHandler()
-	for {
-		err := MultiGetMail(MailMQChannel)
-		if err != nil {
-			log.Error("error reading msg from Mail MQ:%s", err.Error())
-			time.Sleep(1000 * time.Millisecond)
-		}
-	}
 }
 
 func StartErrorHandler() {
 
 	for {
-		time.Sleep(time.Duration(conf.DeferredMailDelay) * time.Second)
-		for {
-			err := MultiGetError(MailMQChannel)
-			if err != nil {
-				log.Error("error reading msg from Error MQ:%s", err.Error())
-				time.Sleep(1000 * time.Millisecond)
-			}
-			if ErrorQueue.Length() < int64(conf.MQQueueBuffer) {
-				break
-			}
+		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
+			time.Sleep(1000 * time.Millisecond)
+			continue
+		}
+		err := ExtractError(MailDirectChannel)
+		if err != nil {
+			log.Error("error reading msg from Error Queue DB: %s", err.Error())
 		}
 	}
 }
 
-func StartStatisticServer() {
-	StatisticServer = redismq.NewServer(conf.RedisHost, conf.RedisPort, conf.RedisPassword, conf.RedisDB, conf.MQStatisticPort)
-	StatisticServer.Start()
-}
-
 func CloneMailers() {
+	ExtractorLimiter = make(chan interface{}, EXTRACTOR_MAX_COUNT)
 	for {
-		entry := <-MailMQChannel
-		go SendMail(entry)
+		select {
+		case entry := <-MailDirectChannel:
+			SenderLimiter <- 0
+			go SendMail(entry)
+		default:
+			{
+				if MailQueueCounter > 0 {
+					ExtractorLimiter <- 0
+					go func() {
+						defer func() { <-ExtractorLimiter }()
+						entry, success, err := PopMail()
+						if err != nil {
+							log.Error("error reading message from Mail Queue DB: %s", err.Error())
+							return
+						}
+						log.Debug("msg %s POPPED, success = %t", entry.String(), success)
+						if success {
+							SenderLimiter <- 0
+							go SendMail(entry)
+						}
+					}()
+				}
+			}
+		}
+
 	}
 }
 
 func SendMail(entry QueueEntry) {
+	MailSendersIncreaseCounter(1)
+	defer func() {
+		MailSendersDecreaseCounter(1)
+		<-SenderLimiter
+	}()
 	log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte
@@ -60,7 +76,6 @@ func SendMail(entry QueueEntry) {
 	if conf.DKIMEnabled {
 		data, err = DKIMSign(entry.Data, entry.SenderDomain)
 		if err != nil {
-			//log.Warn("can't sign msg:%s",err.Error())
 			data = entry.Data
 			signed = "(NOT SIGNED)"
 		}
@@ -83,14 +98,16 @@ func SendMail(entry QueueEntry) {
 			entry.ErrorCount += 1
 			entry.Error = smtpError
 			if entry.ErrorCount >= conf.DeferredMailMaxErrors {
-				log.Error("msg %s DROPPED defer limit =(%d/%d):%s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
+				log.Error("msg %s DEFER LIMIT=(%d/%d) DROPPED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
 				return
 			}
+			entry.QueueTime = time.Now()
+			entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay) * time.Second)
 			err := PutError(entry)
 			if err != nil {
-				log.Error("msg %s DROPPED, can't defer cause of %s: %s", entry.String(), err.Error(), smtpError.Error())
+				log.Error("msg %s can't be deferred - %s DROPPED: %s", entry.String(), err.Error(), smtpError.Error())
 			}
-			log.Error("msg %s DEFERRED (%d/%d): %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
+			log.Error("msg %s (%d/%d) (next attempt at %s ) DEFERRED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, smtpError.Error())
 		}
 	} else {
 		log.Info("msg %s SENT%s: %s", entry.String(), signed, ErrStatusSuccess.Error())

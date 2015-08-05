@@ -5,8 +5,6 @@ import (
 	"io/ioutil"
 )
 
-var Config Conf
-
 type Conf struct {
 	ServerHostName          string
 	ListenPort              string
@@ -18,14 +16,9 @@ type Conf struct {
 	RelayModeEnabled        bool
 	RelayServer             string
 	NumCPU                  int
-	RedisMailQueueName      string
-	RedisErrorQueueName     string
-	RedisHost               string
-	RedisPort               string
-	RedisPassword           string
-	RedisDB                 int64
-	MQStatisticPort         string
-	MQQueueBuffer           int
+	ErrorQueueFile          string
+	MailQueueFile           string
+	StatisticPort           string
 	DeferredMailDelay       int
 	DeferredMailMaxErrors   int
 	MaxRecipients           int
