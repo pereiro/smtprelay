@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-const EXTRACTOR_MAX_COUNT = 5
-
 var (
 	SenderLimiter    chan interface{}
 	ExtractorLimiter chan interface{}
@@ -20,46 +18,31 @@ func StartSender() {
 
 func StartErrorHandler() {
 
+//	for {
+//		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
+//			time.Sleep(1000 * time.Millisecond)
+//		} else {
+//			entry, success := ExtractError()
+//			if success {
+//				PushMail(entry)
+//			} else {
+//				time.Sleep(1000 * time.Millisecond)
+//			}
+//		}
+//	}
 	for {
-		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
-			time.Sleep(1000 * time.Millisecond)
-			continue
-		}
-		err := ExtractError(MailDirectChannel)
-		if err != nil {
-			log.Error("error reading msg from Error Queue DB: %s", err.Error())
+				entry:= ExtractError()
+				PushMail(entry)
 		}
 	}
-}
+
+
 
 func CloneMailers() {
-	ExtractorLimiter = make(chan interface{}, EXTRACTOR_MAX_COUNT)
 	for {
-		select {
-		case entry := <-MailDirectChannel:
+			entry := PopMail()
 			SenderLimiter <- 0
 			go SendMail(entry)
-		default:
-			{
-				if MailQueueCounter > 0 {
-					ExtractorLimiter <- 0
-					go func() {
-						defer func() { <-ExtractorLimiter }()
-						entry, success, err := PopMail()
-						if err != nil {
-							log.Error("error reading message from Mail Queue DB: %s", err.Error())
-							return
-						}
-						log.Debug("msg %s POPPED, success = %t", entry.String(), success)
-						if success {
-							SenderLimiter <- 0
-							go SendMail(entry)
-						}
-					}()
-				}
-			}
-		}
-
 	}
 }
 
@@ -103,10 +86,13 @@ func SendMail(entry QueueEntry) {
 			}
 			entry.QueueTime = time.Now()
 			entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay) * time.Second)
-			err := PutError(entry)
+			oldMX := entry.MailServer
+			entry.MailServer, err = lookupMailServer(entry.RecipientDomain, entry.ErrorCount)
 			if err != nil {
-				log.Error("msg %s can't be deferred - %s DROPPED: %s", entry.String(), err.Error(), smtpError.Error())
+				entry.MailServer = oldMX
+				log.Warn("msg %s (%d/%d) (next attempt at %s ) can't find secondary MX record, old MX will be used: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, oldMX)
 			}
+			PushError(entry)
 			log.Error("msg %s (%d/%d) (next attempt at %s ) DEFERRED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, smtpError.Error())
 		}
 	} else {

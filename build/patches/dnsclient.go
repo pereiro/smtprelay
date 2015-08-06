@@ -115,24 +115,24 @@ Cname:
 }
 
 func equalASCIILabel(x, y string) bool {
-    	if len(x) != len(y) {
-        		return false
-        	}
-    	for i := 0; i < len(x); i++ {
-        		a := x[i]
-        		b := y[i]
-        		if 'A' <= a && a <= 'Z' {
-            			a += 0x20
-            		}
-        		if 'A' <= b && b <= 'Z' {
-            			b += 0x20
-            		}
-        		if a != b {
-            			return false
-            		}
-        	}
-    	return true
-    }
+	if len(x) != len(y) {
+		return false
+	}
+	for i := 0; i < len(x); i++ {
+		a := x[i]
+		b := y[i]
+		if 'A' <= a && a <= 'Z' {
+			a += 0x20
+		}
+		if 'A' <= b && b <= 'Z' {
+			b += 0x20
+		}
+		if a != b {
+			return false
+		}
+	}
+	return true
+}
 
 func isDomainName(s string) bool {
 	// See RFC 1035, RFC 3696.

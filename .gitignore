@@ -1,4 +1,6 @@
 log/*
+config.json
+logconfig.xml
 dkim_keys/*
 smtprelay
 .idea/

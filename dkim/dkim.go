@@ -132,7 +132,7 @@ func (d *DKIM) signature(header, body []byte) (string, error) {
 }
 
 func (d *DKIM) Sign(eml []byte) (signed []byte, err error) {
-    //d.Conf[TimestampKey] = strconv.FormatInt(time.Now().Unix(), 10)
+	//d.Conf[TimestampKey] = strconv.FormatInt(time.Now().Unix(), 10)
 	header, body, err := splitEML(eml)
 	if err != nil {
 		return

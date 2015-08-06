@@ -16,8 +16,6 @@ type Conf struct {
 	RelayModeEnabled        bool
 	RelayServer             string
 	NumCPU                  int
-	ErrorQueueFile          string
-	MailQueueFile           string
 	StatisticPort           string
 	DeferredMailDelay       int
 	DeferredMailMaxErrors   int

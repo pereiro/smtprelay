@@ -2,22 +2,19 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/boltdb/bolt"
 	"net/http"
 	"sync/atomic"
 )
 
 func GetErrorQueueLength() int64 {
-	return ErrorQueueCounter
+	return int64(len(ErrorChannel))
 }
 
 func GetMailQueueLength() int64 {
-	return int64(len(MailDirectChannel)) + MailQueueCounter
+	return int64(len(MailChannel))
 }
 
 var (
-	ErrorQueueCounter   int64
-	MailQueueCounter    int64
 	MailHandlersCounter int64
 	MailSendersCounter  int64
 )
@@ -31,67 +28,23 @@ type QueueStats struct {
 	MailHandlersCounter   int64
 	MailSendersCounter    int64
 	MailExtractorsCounter int64
-	MailDBStats           bolt.BucketStats
-	ErrorDBStats          bolt.BucketStats
-	MailMetaData          QueueMetaData
-}
-
-func SetCounterInitialValues(errors int64, mails int64) {
-	ErrorQueueCounter = errors
-	MailQueueCounter = mails
 }
 
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
-	stats.ErrorQueueCounter = ErrorQueueCounter
-	stats.MailQueueCounter = MailQueueCounter
+	stats.ErrorQueueCounter = GetErrorQueueLength()
+	stats.MailQueueCounter = GetMailQueueLength()
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
-	stats.ErrorBufferCounter = int64(len(ErrorQueueChannel))
-	stats.MailBufferCounter = int64(len(MailDirectChannel))
+	stats.ErrorBufferCounter = int64(len(ErrorChannel))
+	stats.MailBufferCounter = int64(len(MailChannel))
 	stats.MailExtractorsCounter = int64(len(ExtractorLimiter))
 	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + stats.ErrorBufferCounter + stats.MailBufferCounter
-	mailmeta, err := GetMailMetaData()
-	if err != nil {
-		return data, err
-	}
-	stats.MailMetaData = *mailmeta
-
-	err = errorDb.View(func(tx *bolt.Tx) error {
-		stats.ErrorDBStats = tx.Bucket([]byte(DATA_BUCKET)).Stats()
-		return nil
-	})
-	if err != nil {
-		return data, err
-	}
-	err = mailDb.View(func(tx *bolt.Tx) error {
-		stats.MailDBStats = tx.Bucket([]byte(DATA_BUCKET)).Stats()
-		return nil
-	})
-	if err != nil {
-		return data, err
-	}
 	data, err = json.Marshal(stats)
 	if err != nil {
 		return data, err
 	}
 	return data, err
-}
-
-func QueueIncreaseCounter(counter *int64, count int) {
-	atomic.AddInt64(counter, int64(count))
-}
-
-func ErrorQueueDecreaseCounter(count int) {
-	atomic.AddInt64(&ErrorQueueCounter, -int64(count))
-}
-
-func MailQueueIncreaseCounter(count int) {
-	atomic.AddInt64(&MailQueueCounter, int64(count))
-}
-
-func MailQueueDecreaseCounter(count int) {
-	atomic.AddInt64(&MailQueueCounter, -int64(count))
 }
 
 func MailHandlersIncreaseCounter(count int) {

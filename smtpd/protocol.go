@@ -151,10 +151,10 @@ func (session *session) handleMAIL(cmd command) {
 		return
 	}
 
-    if len(cmd.params)<2{
-        session.reply(502, "Ill-formatted e-mail address")
-        return
-    }
+	if len(cmd.params) < 2 {
+		session.reply(502, "Ill-formatted e-mail address")
+		return
+	}
 
 	addr, err := parseAddress(cmd.params[1])
 
@@ -191,10 +191,10 @@ func (session *session) handleRCPT(cmd command) {
 		return
 	}
 
-    if len(cmd.params)<2{
-        session.reply(502, "Ill-formatted e-mail address")
-        return
-    }
+	if len(cmd.params) < 2 {
+		session.reply(502, "Ill-formatted e-mail address")
+		return
+	}
 
 	addr, err := parseAddress(cmd.params[1])
 

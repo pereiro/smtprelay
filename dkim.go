@@ -6,8 +6,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"smtprelay/dkim"
 	"strings"
-    "smtprelay/dkim"
 )
 
 const KEY_CONFIG_SUFFIX string = ".config"
@@ -46,18 +46,18 @@ func DKIMLoadKeyRepository() error {
 			log.Warn("can't read key data from %s:%s", conf.DKIMKeyDir+string(sep)+keyFile.Name(), err.Error())
 			continue
 		}
-        key.dkimConf, err = dkim.NewConf(key.Domain, key.Selector)
-        if err != nil {
-            log.Error("DKIM configuration error: %v", err)
-            continue
-        }
+		key.dkimConf, err = dkim.NewConf(key.Domain, key.Selector)
+		if err != nil {
+			log.Error("DKIM configuration error: %v", err)
+			continue
+		}
 
-        d, err := dkim.New(key.dkimConf, key.Data)
-        if err != nil {
-            log.Error("DKIM error: %v", err)
-            continue
-        }
-        key.dkim = *d
+		d, err := dkim.New(key.dkimConf, key.Data)
+		if err != nil {
+			log.Error("DKIM error: %v", err)
+			continue
+		}
+		key.dkim = *d
 		DKIMRepo[key.Domain] = key
 
 		keyCount++
@@ -85,15 +85,15 @@ func DKIMLoadConfig(filename string) (keyConfig DKIM, err error) {
 
 func DKIMSign(data []byte, domain string) ([]byte, error) {
 	var err error
-    privKey := DKIMRepo[domain]
+	privKey := DKIMRepo[domain]
 	if len(privKey.Domain) == 0 {
 		return data, errors.New("no key in keyrepo")
 	}
 
-    privKey.dkim.Conf, err = dkim.NewConf(privKey.Domain, privKey.Selector)
-    if err != nil {
-        return data, err
-    }
+	privKey.dkim.Conf, err = dkim.NewConf(privKey.Domain, privKey.Selector)
+	if err != nil {
+		return data, err
+	}
 
 	signeddata, err := privKey.dkim.Sign(bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
 	if err != nil {

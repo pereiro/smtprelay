@@ -38,11 +38,10 @@ func main() {
 
 	runtime.GOMAXPROCS(conf.NumCPU)
 
-	if err := InitQueues(conf.ErrorQueueFile, conf.MailQueueFile); err != nil {
+	if err := InitQueues(); err != nil {
 		log.Critical("can't init MQ", err.Error())
 		panic(err.Error())
 	}
-	defer CloseQueues()
 
 	log.Info("MQ initialized")
 	go StartStatisticServer()
@@ -77,7 +76,11 @@ func main() {
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
 	work := func() {
-		server.ListenAndServe(conf.ListenPort)
+		err := server.ListenAndServe(conf.ListenPort)
+		if err != nil {
+			log.Critical("Error while start SMTP listener at port %s:%s",conf.ListenPort,err.Error())
+			panic(err.Error())
+		}
 	}
 
 	for {
@@ -117,7 +120,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 	for domain, _ := range msg.RcptDomains {
 
-		mailServer, err := lookupMailServer(strings.ToLower(domain))
+		mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
 		if err != nil {
 			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 			return ErrDomainNotFound
@@ -128,24 +131,21 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 		}
 
 		entries = append(entries, QueueEntry{MailServer: mailServer,
-			Sender:       env.Sender,
-			Recipients:   msg.GetDomainRecipientList(domain),
-			Data:         env.Data,
-			SenderDomain: msg.Sender.Domain,
-			MessageId:    msg.MessageId})
+			Sender:          env.Sender,
+			Recipients:      msg.GetDomainRecipientList(domain),
+			Data:            env.Data,
+			SenderDomain:    msg.Sender.Domain,
+			RecipientDomain: domain,
+			MessageId:       msg.MessageId})
 	}
 	for _, entry := range entries {
 		select {
-		case MailDirectChannel <- entry:
+		case MailChannel <- entry:
 		default:
 			go func() {
 				MailHandlersIncreaseCounter(1)
 				defer MailHandlersDecreaseCounter(1)
-				err = PushMail(entry)
-				if err != nil {
-					log.Error("msg %s, MQ error - %s DROPPED: %s", msg.String(), err.Error(), ErrServerError.Error())
-					return
-				}
+				PushMail(entry)
 				log.Info("msg %s QUEUED", msg.String())
 			}()
 		}
@@ -155,16 +155,16 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 }
 
 func GetFlags() (flags Flags) {
-	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay/", "Enter path to workdir. Default:/usr/local/etc/smtprelay/")
+	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay", "Enter path to workdir. Default:/usr/local/etc/smtprelay")
 	flag.Parse()
 	flags.MainConfigFilePath = *workDir + string(os.PathSeparator) + MAINCONFIGFILENAME
 	flags.LogConfigFilePath = *workDir + string(os.PathSeparator) + LOGCONFIGFILENAME
 	if _, err := os.Stat(flags.MainConfigFilePath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.MainConfigFilePath)
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir\n", flags.MainConfigFilePath)
 		os.Exit(1)
 	}
 	if _, err := os.Stat(flags.LogConfigFilePath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir", flags.LogConfigFilePath)
+		fmt.Fprintf(os.Stderr, "File %s not found.Please specify correct workdir\n", flags.LogConfigFilePath)
 		os.Exit(1)
 	}
 	return flags

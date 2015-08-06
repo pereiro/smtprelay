@@ -41,4 +41,3 @@ var (
 	ErrServerError          = Error{Code: StatusServerError, Message: StatusString(StatusServerError)}
 	ErrExceedStorage        = Error{Code: StatusExceedStorage, Message: StatusString(StatusExceedStorage)}
 )
-

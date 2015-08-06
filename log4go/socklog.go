@@ -51,5 +51,5 @@ func NewSocketLogWriter(proto, hostport string) SocketLogWriter {
 }
 
 func FormatSyslogRecord(rec *LogRecord) string {
-    return FormatLogRecord("%L  %M",rec)
+	return FormatLogRecord("%L  %M", rec)
 }

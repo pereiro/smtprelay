@@ -276,15 +276,15 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte, host st
 		return err
 	}
 	defer c.Close()
-    c.localName = host
+	c.localName = host
 	if err = c.hello(); err != nil {
 		return err
 	}
 	if ok, _ := c.Extension("STARTTLS"); ok {
-        //TLS INSECURE FIX
+		//TLS INSECURE FIX
 		config := &tls.Config{
-            ServerName: c.serverName,
-            InsecureSkipVerify:true}
+			ServerName:         c.serverName,
+			InsecureSkipVerify: true}
 
 		if testHookStartTLS != nil {
 			testHookStartTLS(config)
