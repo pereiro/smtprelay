@@ -10,15 +10,22 @@ func lookupMailServer(domain string, errorCount int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	mx,err := getRoundElement(mxList,errorCount)
+	if err != nil {
+		return "",err
+	}
+
+	return mx.Host[:len(mx.Host)-1] + ":25", nil
+}
+
+func getRoundElement(mxList []*net.MX,errorCount int) (mx *net.MX,err error){
 	l := len(mxList)
 	if l == 0 {
-		return "", errors.New("MX record not found")
+		return mx, errors.New("MX record not found")
 	}
-	var mx *net.MX
-	for errorCount > l {
+	for errorCount >= l {
 		errorCount = errorCount - l
 	}
 	mx = mxList[errorCount]
-
-	return mx.Host[:len(mx.Host)-1] + ":25", nil
+	return
 }
