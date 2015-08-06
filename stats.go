@@ -21,8 +21,6 @@ var (
 
 type QueueStats struct {
 	OverallCounter        int64
-	ErrorQueueCounter     int64
-	MailQueueCounter      int64
 	ErrorBufferCounter    int64
 	MailBufferCounter     int64
 	MailHandlersCounter   int64
@@ -32,14 +30,12 @@ type QueueStats struct {
 
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
-	stats.ErrorQueueCounter = GetErrorQueueLength()
-	stats.MailQueueCounter = GetMailQueueLength()
 	stats.MailHandlersCounter = MailHandlersCounter
 	stats.MailSendersCounter = MailSendersCounter
 	stats.ErrorBufferCounter = int64(len(ErrorChannel))
 	stats.MailBufferCounter = int64(len(MailChannel))
 	stats.MailExtractorsCounter = int64(len(ExtractorLimiter))
-	stats.OverallCounter = stats.ErrorQueueCounter + stats.MailQueueCounter + stats.ErrorBufferCounter + stats.MailBufferCounter
+	stats.OverallCounter = stats.ErrorBufferCounter + stats.MailBufferCounter
 	data, err = json.Marshal(stats)
 	if err != nil {
 		return data, err
