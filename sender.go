@@ -87,7 +87,11 @@ func SendMail(entry QueueEntry) {
 			entry.QueueTime = time.Now()
 			entry.UnqueueTime = entry.QueueTime.Add(time.Duration(conf.DeferredMailDelay) * time.Second)
 			oldMX := entry.MailServer
-			entry.MailServer, err = lookupMailServer(entry.RecipientDomain, entry.ErrorCount)
+			if conf.RelayModeEnabled {
+				entry.MailServer = conf.RelayServer
+			}else {
+				entry.MailServer, err = lookupMailServer(entry.RecipientDomain, entry.ErrorCount)
+			}
 			if err != nil {
 				entry.MailServer = oldMX
 				log.Warn("msg %s (%d/%d) (next attempt at %s ) can't find secondary MX record, old MX will be used: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, oldMX)
