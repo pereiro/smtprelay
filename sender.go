@@ -52,7 +52,7 @@ func SendMail(entry QueueEntry) {
 		MailSendersDecreaseCounter(1)
 		<-SenderLimiter
 	}()
-	log.Info("msg %s READY for processing", entry.String())
+	//log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte
 	var signed = ""
