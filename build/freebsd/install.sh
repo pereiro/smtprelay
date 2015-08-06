@@ -7,10 +7,6 @@ LOFILE=smtprelay.log
 RCPATH=/etc/rc.d
 RCCONF=/etc/rc.conf
 
-
-echo "Installing REDIS"
-pkg install redis
-echo "Redis installed"
 echo "Creating folders and copying files"
 mkdir -p $CONFPATH
 mkdir -p $CONFPATH/dkim_keys
