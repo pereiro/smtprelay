@@ -45,7 +45,7 @@ func (server *StoppableSMTPServer) Start() (err error) {
 				log.Critical("Error while start SMTP server at port %s:%s", conf.ListenPort, err.Error())
 				return
 			} else {
-				log.Info("SMTP listener stopped")
+				log.Info("SYSTEM: SMTP listener stopped")
 			}
 
 		}
@@ -54,11 +54,11 @@ func (server *StoppableSMTPServer) Start() (err error) {
 }
 
 func (server *StoppableSMTPServer) Stop() {
-	log.Info("Stopping SMTP listener")
+	log("SYSTEM: Stopping SMTP listener")
 	server.Listener.Stop()
-	log.Info("Waiting for processing existing incoming SMTP connections")
+	log.Info("SYSTEM: Waiting for processing existing incoming SMTP connections")
 	server.WaitGroup.Wait()
-	log.Info("SMTP server stopped")
+	log.Info("SYSTEM: SMTP server stopped")
 }
 
 func NewStoppableListener(l net.Listener) (*StoppableListener, error) {

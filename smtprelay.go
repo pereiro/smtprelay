@@ -176,7 +176,7 @@ func StartSignalListener() {
 	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	for {
 		var signal = <-c
-		log.Info("SYSTEM SIGNAL %s RECEIVED", signal.String())
+		log.Info("SYSTEM: SIGNAL %s RECEIVED", signal.String())
 		switch signal {
 		case syscall.SIGUSR1:
 			ReloadConfig(flags.MainConfigFilePath)
@@ -197,18 +197,18 @@ func StartSignalListener() {
 
 func GracefullyStop() {
 	smtpServer.Stop()
-	log.Info("Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)", GetMailQueueLength()+GetErrorQueueLength())
+	log.Info("SYSTEM: Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)", GetMailQueueLength()+GetErrorQueueLength())
 	for GetMailQueueLength()+GetErrorQueueLength() > 0 {
 		FlushErrors()
 		time.Sleep(1 * time.Second)
-		log.Info("Messages left in queues - %d (mails - %d;errors - %d)", GetMailQueueLength()+GetErrorQueueLength(), GetMailQueueLength(), GetErrorQueueLength())
+		log.Info("SYSTEM: Messages left in queues - %d (mails - %d;errors - %d)", GetMailQueueLength()+GetErrorQueueLength(), GetMailQueueLength(), GetErrorQueueLength())
 	}
-	log.Info("Smtprelay stopped")
 	time.Sleep(1 * time.Second)
+	log.Info("SYSTEM: Smtprelay stopped")
 	EXIT <- 1
 }
 
 func FlushQueues() {
-	log.Info("Start flushing queues")
+	log.Info("SYSTEM: Start flushing queues")
 	FlushErrors()
 }
