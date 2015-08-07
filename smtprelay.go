@@ -7,11 +7,16 @@ import (
 	"runtime"
 	"smtprelay/smtpd"
 	"strings"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (
 	conf *Conf
-	//IncomingLimiter chan interface{}
+	flags Flags
+	smtpServer StoppableSMTPServer
+	EXIT chan int
 )
 
 const (
@@ -24,8 +29,19 @@ type Flags struct {
 	LogConfigFilePath  string
 }
 
+func ReloadConfig(filename string){
+	log.Info("Reloading config file")
+	newConf := new(Conf)
+	if err := newConf.Load(flags.MainConfigFilePath); err != nil {
+		log.Critical("can't reload config, old settings will be used:", err.Error())
+	}
+	conf = newConf
+	runtime.GOMAXPROCS(conf.NumCPU)
+}
+
 func main() {
-	flags := GetFlags()
+	EXIT = make(chan int)
+	flags = GetFlags()
 
 	InitLogger(flags.LogConfigFilePath)
 
@@ -61,32 +77,29 @@ func main() {
 	if conf.RelayModeEnabled {
 		log.Info("Relay mode enabled! All messages will be redirected to %s", conf.RelayServer)
 	}
-	//IncomingLimiter = make(chan interface{},conf.MaxIncomingConnections)
-
-	server := &smtpd.Server{
-		Hostname:       conf.ServerHostName,
-		WelcomeMessage: conf.WelcomeMessage,
-		MaxConnections: conf.MaxIncomingConnections,
-		Handler:        handlerPanicProcessor(handler),
-	}
 
 	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
 	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
+
+
+	//smtpServer = new(StoppableSMTPServer)
+	smtpServer.Hostname = conf.ServerHostName
+	smtpServer.WelcomeMessage = conf.WelcomeMessage
+	smtpServer.MaxConnections = conf.MaxIncomingConnections
+	smtpServer.Handler = handlerPanicProcessor(handler)
+
+
+	go StartSignalListener()
+
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
-	work := func() {
-		err := server.ListenAndServe(conf.ListenPort)
-		if err != nil {
-			log.Critical("Error while start SMTP listener at port %s:%s",conf.ListenPort,err.Error())
-			panic(err.Error())
-		}
+	err:=smtpServer.Start()
+	if err != nil {
+		panic(err.Error())
 	}
 
-	for {
-		work()
-	}
-
+	<-EXIT
 }
 
 func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) error) func(peer smtpd.Peer, env smtpd.Envelope) error {
@@ -159,4 +172,39 @@ func GetFlags() (flags Flags) {
 		os.Exit(1)
 	}
 	return flags
+}
+
+func StartSignalListener(){
+	c:= make(chan os.Signal,1)
+	signal.Notify(c,syscall.SIGUSR1,syscall.SIGUSR2,syscall.SIGINT,syscall.SIGKILL)
+	for {
+		var signal = <-c;
+		log.Info("SYSTEM SIGNAL %s RECEIVED",signal.String())
+		switch signal {
+			case syscall.SIGUSR1:ReloadConfig(flags.MainConfigFilePath)
+			case syscall.SIGUSR2:FlushQueues()
+			case syscall.SIGINT:GracefullyStop()
+			case syscall.SIGKILL:GracefullyStop()
+			}
+		}
+	}
+
+
+func GracefullyStop(){
+	smtpServer.Stop()
+	log.Info("Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)",GetMailQueueLength()+GetErrorQueueLength())
+	for GetMailQueueLength()+GetErrorQueueLength()>0 {
+		FlushErrors()
+		time.Sleep(1*time.Second)
+		log.Info("Messages left in queues - %d (mails - %d;errors - %d)",GetMailQueueLength()+GetErrorQueueLength(),GetMailQueueLength(),GetErrorQueueLength())
+	}
+	log.Info("Smtprelay stopped")
+	time.Sleep(1*time.Second)
+	EXIT <- 1
+}
+
+
+func FlushQueues(){
+	log.Info("Start flushing queues")
+	FlushErrors()
 }

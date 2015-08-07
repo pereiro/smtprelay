@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"reflect"
+	"errors"
+	"fmt"
 )
 
 type Conf struct {
@@ -25,15 +28,21 @@ type Conf struct {
 func (cf *Conf) Load(filename string) error {
 	file, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Error("file error:%s\n", err)
+		log.Error("file error:%s", err)
 		return err
 	}
 
 	err = json.Unmarshal(file, &cf)
 	if err != nil {
-		log.Error("json parse error:%S\n", err)
+		log.Error("json parse error:%s", err)
 		return err
 	}
+
+//	err = cf.CheckConfig()
+//	if err != nil {
+//		log.Error("configuration isn't valid:%s",err.Error())
+//	}
+
 	return nil
 }
 
@@ -50,3 +59,15 @@ func (cf *Conf) Save(filename string) error {
 	}
 	return nil
 }
+
+func (cf *Conf) CheckConfig() error {
+	ref := reflect.ValueOf(*cf)
+	for i:=0;i<ref.NumField();i++{
+		field := ref.Field(i)
+		if  field.IsNil(){
+			return errors.New(fmt.Sprintf("no value found for %s",ref.Type().Field(i).Name))
+		}
+	}
+	return nil
+}
+

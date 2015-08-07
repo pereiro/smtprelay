@@ -63,3 +63,12 @@ func ExtractError() (entry QueueEntry) {
 		}
 		return entry
 }
+
+func FlushErrors(){
+	for len(ErrorChannel)>0{
+		entry := <- ErrorChannel
+		log.Error("msg %s FLUSHED from error queue. Error counter is forced to %d", entry.String(),entry.ErrorCount)
+		entry.ErrorCount = conf.DeferredMailMaxErrors
+		MailChannel <- entry
+	}
+}
