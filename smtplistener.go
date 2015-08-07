@@ -54,7 +54,7 @@ func (server *StoppableSMTPServer) Start() (err error) {
 }
 
 func (server *StoppableSMTPServer) Stop() {
-	log("SYSTEM: Stopping SMTP listener")
+	log.Info("SYSTEM: Stopping SMTP listener")
 	server.Listener.Stop()
 	log.Info("SYSTEM: Waiting for processing existing incoming SMTP connections")
 	server.WaitGroup.Wait()
