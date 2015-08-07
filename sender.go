@@ -18,31 +18,29 @@ func StartSender() {
 
 func StartErrorHandler() {
 
-//	for {
-//		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
-//			time.Sleep(1000 * time.Millisecond)
-//		} else {
-//			entry, success := ExtractError()
-//			if success {
-//				PushMail(entry)
-//			} else {
-//				time.Sleep(1000 * time.Millisecond)
-//			}
-//		}
-//	}
+	//	for {
+	//		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
+	//			time.Sleep(1000 * time.Millisecond)
+	//		} else {
+	//			entry, success := ExtractError()
+	//			if success {
+	//				PushMail(entry)
+	//			} else {
+	//				time.Sleep(1000 * time.Millisecond)
+	//			}
+	//		}
+	//	}
 	for {
-				entry:= ExtractError()
-				PushMail(entry)
-		}
+		entry := ExtractError()
+		PushMail(entry)
 	}
-
-
+}
 
 func CloneMailers() {
 	for {
-			entry := PopMail()
-			SenderLimiter <- 0
-			go SendMail(entry)
+		entry := PopMail()
+		SenderLimiter <- 0
+		go SendMail(entry)
 	}
 }
 
@@ -89,7 +87,7 @@ func SendMail(entry QueueEntry) {
 			oldMX := entry.MailServer
 			if conf.RelayModeEnabled {
 				entry.MailServer = conf.RelayServer
-			}else {
+			} else {
 				entry.MailServer, err = lookupMailServer(entry.RecipientDomain, entry.ErrorCount)
 				if err != nil {
 					entry.MailServer = oldMX

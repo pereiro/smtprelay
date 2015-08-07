@@ -4,19 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
 	"smtprelay/smtpd"
 	"strings"
-	"os/signal"
 	"syscall"
 	"time"
 )
 
 var (
-	conf *Conf
-	flags Flags
+	conf       *Conf
+	flags      Flags
 	smtpServer StoppableSMTPServer
-	EXIT chan int
+	EXIT       chan int
 )
 
 const (
@@ -29,7 +29,7 @@ type Flags struct {
 	LogConfigFilePath  string
 }
 
-func ReloadConfig(filename string){
+func ReloadConfig(filename string) {
 	log.Info("Reloading config file")
 	newConf := new(Conf)
 	if err := newConf.Load(flags.MainConfigFilePath); err != nil {
@@ -81,20 +81,17 @@ func main() {
 	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
 	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
-
-
 	//smtpServer = new(StoppableSMTPServer)
 	smtpServer.Hostname = conf.ServerHostName
 	smtpServer.WelcomeMessage = conf.WelcomeMessage
 	smtpServer.MaxConnections = conf.MaxIncomingConnections
 	smtpServer.Handler = handlerPanicProcessor(handler)
 
-
 	go StartSignalListener()
 
 	log.Info("SMTP Relay started at %s", conf.ListenPort)
 
-	err:=smtpServer.Start()
+	err := smtpServer.Start()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -174,37 +171,41 @@ func GetFlags() (flags Flags) {
 	return flags
 }
 
-func StartSignalListener(){
-	c:= make(chan os.Signal,1)
-	signal.Notify(c,syscall.SIGUSR1,syscall.SIGUSR2,syscall.SIGINT,syscall.SIGKILL)
+func StartSignalListener() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR1, syscall.SIGUSR2, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	for {
-		var signal = <-c;
-		log.Info("SYSTEM SIGNAL %s RECEIVED",signal.String())
+		var signal = <-c
+		log.Info("SYSTEM SIGNAL %s RECEIVED", signal.String())
 		switch signal {
-			case syscall.SIGUSR1:ReloadConfig(flags.MainConfigFilePath)
-			case syscall.SIGUSR2:FlushQueues()
-			case syscall.SIGINT:GracefullyStop()
-			case syscall.SIGKILL:GracefullyStop()
-			}
+		case syscall.SIGUSR1:
+			ReloadConfig(flags.MainConfigFilePath)
+		case syscall.SIGUSR2:
+			FlushQueues()
+		case syscall.SIGINT:
+			GracefullyStop()
+		case syscall.SIGKILL:
+			GracefullyStop()
+		case syscall.SIGTERM:
+			GracefullyStop()
 		}
 	}
+}
 
-
-func GracefullyStop(){
+func GracefullyStop() {
 	smtpServer.Stop()
-	log.Info("Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)",GetMailQueueLength()+GetErrorQueueLength())
-	for GetMailQueueLength()+GetErrorQueueLength()>0 {
+	log.Info("Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)", GetMailQueueLength()+GetErrorQueueLength())
+	for GetMailQueueLength()+GetErrorQueueLength() > 0 {
 		FlushErrors()
-		time.Sleep(1*time.Second)
-		log.Info("Messages left in queues - %d (mails - %d;errors - %d)",GetMailQueueLength()+GetErrorQueueLength(),GetMailQueueLength(),GetErrorQueueLength())
+		time.Sleep(1 * time.Second)
+		log.Info("Messages left in queues - %d (mails - %d;errors - %d)", GetMailQueueLength()+GetErrorQueueLength(), GetMailQueueLength(), GetErrorQueueLength())
 	}
 	log.Info("Smtprelay stopped")
-	time.Sleep(1*time.Second)
+	time.Sleep(1 * time.Second)
 	EXIT <- 1
 }
 
-
-func FlushQueues(){
+func FlushQueues() {
 	log.Info("Start flushing queues")
 	FlushErrors()
 }

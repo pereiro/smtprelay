@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
-	"reflect"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"reflect"
 )
 
 type Conf struct {
@@ -38,10 +38,10 @@ func (cf *Conf) Load(filename string) error {
 		return err
 	}
 
-//	err = cf.CheckConfig()
-//	if err != nil {
-//		log.Error("configuration isn't valid:%s",err.Error())
-//	}
+	//	err = cf.CheckConfig()
+	//	if err != nil {
+	//		log.Error("configuration isn't valid:%s",err.Error())
+	//	}
 
 	return nil
 }
@@ -62,12 +62,11 @@ func (cf *Conf) Save(filename string) error {
 
 func (cf *Conf) CheckConfig() error {
 	ref := reflect.ValueOf(*cf)
-	for i:=0;i<ref.NumField();i++{
+	for i := 0; i < ref.NumField(); i++ {
 		field := ref.Field(i)
-		if  field.IsNil(){
-			return errors.New(fmt.Sprintf("no value found for %s",ref.Type().Field(i).Name))
+		if field.IsNil() {
+			return errors.New(fmt.Sprintf("no value found for %s", ref.Type().Field(i).Name))
 		}
 	}
 	return nil
 }
-

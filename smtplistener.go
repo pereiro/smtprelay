@@ -1,7 +1,8 @@
 package main
+
 import (
-	"net"
 	"errors"
+	"net"
 	"smtprelay/smtpd"
 	"sync"
 	"time"
@@ -13,17 +14,17 @@ var (
 
 type StoppableListener struct {
 	*net.TCPListener
-	stop             chan int
+	stop chan int
 }
 
-type StoppableSMTPServer struct{
+type StoppableSMTPServer struct {
 	smtpd.Server
 	OriginalListener net.Listener
-	Listener *StoppableListener
-	WaitGroup sync.WaitGroup
+	Listener         *StoppableListener
+	WaitGroup        sync.WaitGroup
 }
 
-func (server *StoppableSMTPServer) Start() (err error ){
+func (server *StoppableSMTPServer) Start() (err error) {
 
 	server.OriginalListener, err = net.Listen("tcp", conf.ListenPort)
 	if err != nil {
@@ -40,10 +41,10 @@ func (server *StoppableSMTPServer) Start() (err error ){
 		defer server.WaitGroup.Done()
 		err = server.Serve(server.Listener)
 		if err != nil {
-			if err!=StoppedError {
+			if err != StoppedError {
 				log.Critical("Error while start SMTP server at port %s:%s", conf.ListenPort, err.Error())
 				return
-			}else{
+			} else {
 				log.Info("SMTP listener stopped")
 			}
 
@@ -52,7 +53,7 @@ func (server *StoppableSMTPServer) Start() (err error ){
 	return
 }
 
-func (server *StoppableSMTPServer) Stop(){
+func (server *StoppableSMTPServer) Stop() {
 	log.Info("Stopping SMTP listener")
 	server.Listener.Stop()
 	log.Info("Waiting for processing existing incoming SMTP connections")
@@ -87,7 +88,7 @@ func (sl *StoppableListener) Accept() (net.Conn, error) {
 		case <-sl.stop:
 			return nil, StoppedError
 		default:
-		//If the channel is still open, continue as normal
+			//If the channel is still open, continue as normal
 		}
 
 		if err != nil {

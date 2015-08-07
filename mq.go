@@ -57,17 +57,17 @@ func PushError(entry QueueEntry) {
 
 func ExtractError() (entry QueueEntry) {
 
-		entry = <-ErrorChannel
-		for  entry.UnqueueTime.After(time.Now()) {
-			time.Sleep(1*time.Second)
-		}
-		return entry
+	entry = <-ErrorChannel
+	for entry.UnqueueTime.After(time.Now()) {
+		time.Sleep(1 * time.Second)
+	}
+	return entry
 }
 
-func FlushErrors(){
-	for len(ErrorChannel)>0{
-		entry := <- ErrorChannel
-		log.Error("msg %s FLUSHED from error queue. Error counter is forced to %d", entry.String(),entry.ErrorCount)
+func FlushErrors() {
+	for len(ErrorChannel) > 0 {
+		entry := <-ErrorChannel
+		log.Error("msg %s FLUSHED from error queue. Error counter is forced to %d", entry.String(), entry.ErrorCount)
 		entry.ErrorCount = conf.DeferredMailMaxErrors
 		MailChannel <- entry
 	}
