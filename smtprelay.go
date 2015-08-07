@@ -203,8 +203,9 @@ func GracefullyStop() {
 		time.Sleep(1 * time.Second)
 		log.Info("SYSTEM: Messages left in queues - %d (mails - %d;errors - %d)", GetMailQueueLength()+GetErrorQueueLength(), GetMailQueueLength(), GetErrorQueueLength())
 	}
-	time.Sleep(1 * time.Second)
+	time.Sleep(200 * time.Millisecond)
 	log.Info("SYSTEM: Smtprelay stopped")
+	time.Sleep(200 * time.Millisecond)
 	EXIT <- 1
 }
 
