@@ -139,16 +139,7 @@ func handler(peer smtpd.Peer, env smtpd.Envelope) error {
 			MessageId:       msg.MessageId})
 	}
 	for _, entry := range entries {
-		select {
-		case MailChannel <- entry:
-		default:
-			go func() {
-				MailHandlersIncreaseCounter(1)
-				defer MailHandlersDecreaseCounter(1)
-				PushMail(entry)
-				log.Info("msg %s QUEUED", msg.String())
-			}()
-		}
+		PushMail(entry)
 	}
 	return nil
 
