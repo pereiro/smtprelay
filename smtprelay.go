@@ -188,7 +188,10 @@ func StartSignalListener() {
 			GracefullyStop()
 		case syscall.SIGTERM:
 			GracefullyStop()
+		case syscall.SIGHUP:
+			GracefullyStop()
 		}
+
 	}
 }
 

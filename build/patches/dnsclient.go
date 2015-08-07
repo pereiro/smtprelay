@@ -94,7 +94,7 @@ Cname:
 				continue
 			}
 			h := rr.Header()
-            if h.Class == dnsClassINET && equalASCIILabel(h.Name, name) {
+			if h.Class == dnsClassINET && equalASCIILabel(h.Name, name) {
 				switch h.Rrtype {
 				case qtype:
 					addrs = append(addrs, rr)
