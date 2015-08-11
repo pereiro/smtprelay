@@ -45,7 +45,7 @@ func main() {
 
 	InitLogger(flags.LogConfigFilePath)
 
-	log.Info("Starting..")
+	log.Info("SYSTEM: Starting..")
 	conf = new(Conf)
 	if err := conf.Load(flags.MainConfigFilePath); err != nil {
 		log.Critical("can't load config,shut down:", err.Error())
@@ -59,12 +59,12 @@ func main() {
 		panic(err.Error())
 	}
 
-	log.Info("MQ initialized")
+	log.Info("SYSTEM: MQ initialized")
 	go StartStatisticServer()
 	go StartSender()
 
 	if conf.DKIMEnabled {
-		log.Info("DKIM enabled, loading keys..")
+		log.Info("SYSTEM: DKIM enabled, loading keys..")
 		err := DKIMLoadKeyRepository()
 		if err != nil {
 			log.Critical("Can't load DKIM repo:%s", err.Error())
@@ -75,11 +75,11 @@ func main() {
 	}
 
 	if conf.RelayModeEnabled {
-		log.Info("Relay mode enabled! All messages will be redirected to %s", conf.RelayServer)
+		log.Info("SYSTEM: Relay mode enabled! All messages will be redirected to %s", conf.RelayServer)
 	}
 
-	log.Info("Incoming connections limit - %d", conf.MaxIncomingConnections)
-	log.Info("Outcoming connections limit - %d", conf.MaxOutcomingConnections)
+	log.Info("SYSTEM: Incoming connections limit - %d", conf.MaxIncomingConnections)
+	log.Info("SYSTEM: Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
 	//smtpServer = new(StoppableSMTPServer)
 	smtpServer.Hostname = conf.ServerHostName
@@ -89,7 +89,7 @@ func main() {
 
 	go StartSignalListener()
 
-	log.Info("SMTP Relay started at %s", conf.ListenPort)
+	log.Info("SYSTEM: SMTP Relay started at %s", conf.ListenPort)
 
 	err := smtpServer.Start()
 	if err != nil {
