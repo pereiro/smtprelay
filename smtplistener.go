@@ -6,10 +6,12 @@ import (
 	"smtprelay/smtpd"
 	"sync"
 	"time"
+	"strings"
 )
 
 var (
 	StoppedError = errors.New("Listener stopped")
+	smtpServer StoppableSMTPServer
 )
 
 type StoppableListener struct {
@@ -78,24 +80,16 @@ func NewStoppableListener(l net.Listener) (*StoppableListener, error) {
 func (sl *StoppableListener) Accept() (net.Conn, error) {
 
 	for {
-		//Wait up to one second for a new connection
 		sl.SetDeadline(time.Now().Add(time.Second))
-
 		newConn, err := sl.TCPListener.Accept()
-
-		//Check for the channel being closed
 		select {
 		case <-sl.stop:
 			return nil, StoppedError
 		default:
-			//If the channel is still open, continue as normal
 		}
 
 		if err != nil {
 			netErr, ok := err.(net.Error)
-
-			//If this is a timeout, then continue to wait for
-			//new connections
 			if ok && netErr.Timeout() && netErr.Temporary() {
 				continue
 			}
@@ -106,4 +100,63 @@ func (sl *StoppableListener) Accept() (net.Conn, error) {
 }
 func (sl *StoppableListener) Stop() {
 	close(sl.stop)
+}
+
+func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
+	msg, err := ParseMessage(env.Recipients, env.Sender, env.Data)
+	if err != nil {
+		var rcpt = strings.Join(env.Recipients, ";")
+		log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
+		return ErrMessageError
+	}
+
+	log.Info("msg %s from %s RECEIVED", msg.String(), peer.Addr.String())
+
+	if len(env.Recipients) > conf.MaxRecipients || len(env.Recipients) == 0 {
+		log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+		return ErrTooManyRecipients
+	}
+
+	var entries []QueueEntry
+
+	for domain, _ := range msg.RcptDomains {
+
+		mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
+		if err != nil {
+			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+			return ErrDomainNotFound
+		}
+
+		if conf.RelayModeEnabled {
+			mailServer = conf.RelayServer
+		}
+
+		entries = append(entries, QueueEntry{MailServer: mailServer,
+			Sender:          env.Sender,
+			Recipients:      msg.GetDomainRecipientList(domain),
+			Data:            env.Data,
+			SenderDomain:    msg.Sender.Domain,
+			RecipientDomain: domain,
+			MessageId:       msg.MessageId})
+	}
+	for _, entry := range entries {
+		PushMail(entry)
+	}
+	return nil
+
+}
+
+func StartSMTPServer(){
+
+	smtpServer.Hostname = conf.ServerHostName
+	smtpServer.WelcomeMessage = conf.WelcomeMessage
+	smtpServer.MaxConnections = conf.MaxIncomingConnections
+	smtpServer.Handler = handlerPanicProcessor(smtpHandler)
+
+	log.Info("SYSTEM: SMTP Relay started at %s", conf.ListenPort)
+
+	err := smtpServer.Start()
+	if err != nil {
+		panic(err.Error())
+	}
 }

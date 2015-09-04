@@ -23,6 +23,8 @@ type Conf struct {
 	DeferredMailDelay       int
 	DeferredMailMaxErrors   int
 	MaxRecipients           int
+	ListenTCPPort			string
+	TCPMaxConnections		int
 }
 
 func (cf *Conf) Load(filename string) error {

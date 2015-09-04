@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"runtime"
 	"smtprelay/smtpd"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -15,7 +14,6 @@ import (
 var (
 	conf       *Conf
 	flags      Flags
-	smtpServer StoppableSMTPServer
 	EXIT       chan int
 )
 
@@ -81,20 +79,9 @@ func main() {
 	log.Info("SYSTEM: Incoming connections limit - %d", conf.MaxIncomingConnections)
 	log.Info("SYSTEM: Outcoming connections limit - %d", conf.MaxOutcomingConnections)
 
-	//smtpServer = new(StoppableSMTPServer)
-	smtpServer.Hostname = conf.ServerHostName
-	smtpServer.WelcomeMessage = conf.WelcomeMessage
-	smtpServer.MaxConnections = conf.MaxIncomingConnections
-	smtpServer.Handler = handlerPanicProcessor(handler)
-
 	go StartSignalListener()
-
-	log.Info("SYSTEM: SMTP Relay started at %s", conf.ListenPort)
-
-	err := smtpServer.Start()
-	if err != nil {
-		panic(err.Error())
-	}
+	go StartSMTPServer()
+	go StartTCPServer()
 
 	<-EXIT
 }
@@ -111,49 +98,7 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 	}
 }
 
-func handler(peer smtpd.Peer, env smtpd.Envelope) error {
-	msg, err := ParseMessage(env.Recipients, env.Sender, env.Data)
-	if err != nil {
-		var rcpt = strings.Join(env.Recipients, ";")
-		log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
-		return ErrMessageError
-	}
 
-	log.Info("msg %s from %s RECEIVED", msg.String(), peer.Addr.String())
-
-	if len(env.Recipients) > conf.MaxRecipients || len(env.Recipients) == 0 {
-		log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
-		return ErrTooManyRecipients
-	}
-
-	var entries []QueueEntry
-
-	for domain, _ := range msg.RcptDomains {
-
-		mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
-		if err != nil {
-			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
-			return ErrDomainNotFound
-		}
-
-		if conf.RelayModeEnabled {
-			mailServer = conf.RelayServer
-		}
-
-		entries = append(entries, QueueEntry{MailServer: mailServer,
-			Sender:          env.Sender,
-			Recipients:      msg.GetDomainRecipientList(domain),
-			Data:            env.Data,
-			SenderDomain:    msg.Sender.Domain,
-			RecipientDomain: domain,
-			MessageId:       msg.MessageId})
-	}
-	for _, entry := range entries {
-		PushMail(entry)
-	}
-	return nil
-
-}
 
 func GetFlags() (flags Flags) {
 	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay", "Enter path to workdir. Default:/usr/local/etc/smtprelay")
@@ -197,6 +142,7 @@ func StartSignalListener() {
 
 func GracefullyStop() {
 	smtpServer.Stop()
+	StopTCPListener()
 	log.Info("SYSTEM: Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)", GetMailQueueLength()+GetErrorQueueLength())
 	for GetMailQueueLength()+GetErrorQueueLength() > 0 {
 		FlushErrors()

@@ -1,0 +1,9 @@
+message EmailMessageWithByteArray {
+    optional string Sender = 1;
+    repeated string Recipients = 2;
+    optional bytes EmlData = 3;
+    optional string MessageId = 4;
+}
+message EmailMessageWithByteArrayPacket {
+    repeated EmailMessageWithByteArray Messages = 1;
+}

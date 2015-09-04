@@ -1,13 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
 	"smtprelay/dkim"
 	"strings"
+	"bytes"
 )
 
 const KEY_CONFIG_SUFFIX string = ".config"
@@ -95,7 +95,10 @@ func DKIMSign(data []byte, domain string) ([]byte, error) {
 		return data, err
 	}
 
-	signeddata, err := privKey.dkim.Sign(bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1))
+	if(bytes.Index(data,[]byte("\r\n"))<0){
+		data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+	}
+	signeddata, err := privKey.dkim.Sign(data)
 	if err != nil {
 		log.Error("DKIM signing error: %v", err)
 		return data, err
