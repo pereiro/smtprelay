@@ -4,14 +4,14 @@ import (
 	"errors"
 	"net"
 	"smtprelay/smtpd"
+	"strings"
 	"sync"
 	"time"
-	"strings"
 )
 
 var (
 	StoppedError = errors.New("Listener stopped")
-	smtpServer StoppableSMTPServer
+	smtpServer   StoppableSMTPServer
 )
 
 type StoppableListener struct {
@@ -146,7 +146,7 @@ func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 }
 
-func StartSMTPServer(){
+func StartSMTPServer() {
 
 	smtpServer.Hostname = conf.ServerHostName
 	smtpServer.WelcomeMessage = conf.WelcomeMessage
@@ -161,6 +161,6 @@ func StartSMTPServer(){
 	}
 }
 
-func StopSMTPServer(){
+func StopSMTPServer() {
 	smtpServer.Stop()
 }

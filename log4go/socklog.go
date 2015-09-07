@@ -42,14 +42,14 @@ func NewSocketLogWriter(proto, hostport string) SocketLogWriter {
 			js := FormatSyslogRecord(rec)
 			_, err = sock.Write([]byte(js))
 			if err != nil {
-				if err == syscall.EPIPE{
+				if err == syscall.EPIPE {
 					fmt.Fprintf(os.Stderr, "SMTPRELAY: Broken pipe detected - reconnect")
 					sock, err = net.Dial(proto, hostport)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "SMTPRELAY: Reconnection error (%s): %s\n", hostport, err)
 						continue
 					}
-				}else {
+				} else {
 					fmt.Fprint(os.Stderr, "SocketLogWriter(%s): %s", hostport, err)
 					continue
 				}

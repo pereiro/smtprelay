@@ -24,10 +24,10 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type EmailMessageWithByteArray struct {
-	Sender           *string  `protobuf:"bytes,1,opt,name=Sender" json:"Sender,omitempty"`
-	Recipients       []string `protobuf:"bytes,2,rep,name=Recipients" json:"Recipients,omitempty"`
-	EmlData          []byte   `protobuf:"bytes,3,opt,name=EmlData" json:"EmlData,omitempty"`
-	MessageId        *string  `protobuf:"bytes,4,opt,name=MessageId" json:"MessageId,omitempty"`
+	Sender     *string  `protobuf:"bytes,1,opt,name=Sender" json:"Sender,omitempty"`
+	Recipients []string `protobuf:"bytes,2,rep,name=Recipients" json:"Recipients,omitempty"`
+	EmlData    []byte   `protobuf:"bytes,3,opt,name=EmlData" json:"EmlData,omitempty"`
+	MessageId  *string  `protobuf:"bytes,4,opt,name=MessageId" json:"MessageId,omitempty"`
 	//XXX_unrecognized []byte   `json:"-"`
 }
 
@@ -64,7 +64,7 @@ func (m *EmailMessageWithByteArray) GetMessageId() string {
 }
 
 type EmailMessageWithByteArrayPacket struct {
-	Messages         []*EmailMessageWithByteArray `protobuf:"bytes,1,rep,name=Messages" json:"Messages,omitempty"`
+	Messages []*EmailMessageWithByteArray `protobuf:"bytes,1,rep,name=Messages" json:"Messages,omitempty"`
 	//XXX_unrecognized []byte                       `json:"-"`
 }
 

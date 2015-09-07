@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	conf       *Conf
-	flags      Flags
-	EXIT       chan int
+	conf  *Conf
+	flags Flags
+	EXIT  chan int
 )
 
 const (
@@ -97,8 +97,6 @@ func handlerPanicProcessor(handler func(peer smtpd.Peer, env smtpd.Envelope) err
 		return handler(peer, env)
 	}
 }
-
-
 
 func GetFlags() (flags Flags) {
 	var workDir = flag.String("workdir", "/usr/local/etc/smtprelay", "Enter path to workdir. Default:/usr/local/etc/smtprelay")
