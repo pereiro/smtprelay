@@ -141,7 +141,7 @@ func StartSignalListener() {
 }
 
 func GracefullyStop() {
-	smtpServer.Stop()
+	StopSMTPServer()
 	StopTCPListener()
 	log.Info("SYSTEM: Waiting for processing existing outcoming SMTP connections and queued messages (%d in all queues)", GetMailQueueLength()+GetErrorQueueLength())
 	for GetMailQueueLength()+GetErrorQueueLength() > 0 {

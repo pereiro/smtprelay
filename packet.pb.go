@@ -28,7 +28,7 @@ type EmailMessageWithByteArray struct {
 	Recipients       []string `protobuf:"bytes,2,rep,name=Recipients" json:"Recipients,omitempty"`
 	EmlData          []byte   `protobuf:"bytes,3,opt,name=EmlData" json:"EmlData,omitempty"`
 	MessageId        *string  `protobuf:"bytes,4,opt,name=MessageId" json:"MessageId,omitempty"`
-	XXX_unrecognized []byte   `json:"-"`
+	//XXX_unrecognized []byte   `json:"-"`
 }
 
 func (m *EmailMessageWithByteArray) Reset()         { *m = EmailMessageWithByteArray{} }
@@ -65,7 +65,7 @@ func (m *EmailMessageWithByteArray) GetMessageId() string {
 
 type EmailMessageWithByteArrayPacket struct {
 	Messages         []*EmailMessageWithByteArray `protobuf:"bytes,1,rep,name=Messages" json:"Messages,omitempty"`
-	XXX_unrecognized []byte                       `json:"-"`
+	//XXX_unrecognized []byte                       `json:"-"`
 }
 
 func (m *EmailMessageWithByteArrayPacket) Reset()         { *m = EmailMessageWithByteArrayPacket{} }

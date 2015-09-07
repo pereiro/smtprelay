@@ -6,14 +6,21 @@ import (
 	"encoding/binary"
 	"github.com/golang/protobuf/proto"
 	"fmt"
-	"strings"
 	"time"
+	"strings"
+	"errors"
+	"bufio"
+	"io"
+	"io/ioutil"
+)
+
+const (
+	METADATA_LENGTH_BYTES = 8
 )
 
 var (
 	TCPLimiter chan int
 	TCPListenerStarted bool
-
 )
 
 func StartTCPServer() {
@@ -29,11 +36,11 @@ func StartTCPServer() {
 	log.Info("SYSTEM: Started TCP listener at  " + conf.ListenTCPPort)
 	for (TCPListenerStarted) {
 		conn, err := l.Accept()
-		log.Info("connection accepted from %s",conn.RemoteAddr().String())
 		if err != nil {
 			log.Error("Error accepting tcp connection: ", err.Error())
 			continue
 		}
+		log.Info("connection accepted from %s",conn.RemoteAddr().String())
 		TCPLimiter <- 0
 		go tcpHandler(conn)
 	}
@@ -52,50 +59,92 @@ func StopTCPListener(){
 	log.Info("SYSTEM: TCP listener stopped")
 }
 
-func tcpHandler(conn net.Conn){
-	log.Debug("Handler started for %s",conn.RemoteAddr().String())
+func writeErrorResponse(conn net.Conn,arg0 string,args ...interface{} ){
+	log.Error(arg0,args)
+	conn.Write([]byte(fmt.Sprintf(arg0,args)))
+}
 
-	defer conn.Close()
-	metadata := make ([]byte, 8)
-	_,err := conn.Read(metadata)
+
+func readMetaData(conn net.Conn) (payloadSize int64,err error){
+	metadata := make ([]byte, METADATA_LENGTH_BYTES)
+	_,err = conn.Read(metadata)
 	if err != nil {
-		log.Error("error reading metadata frame from %s:%s",conn.RemoteAddr().String(),err.Error())
-		conn.Write([]byte(err.Error()))
 		return
 	}
 	reader := bytes.NewReader(metadata)
 	log.Debug("metadata dump:%v",metadata)
-	var payloadSize int64
 	err = binary.Read(reader,binary.LittleEndian,&payloadSize)
 	if err != nil {
-		log.Error("error converting byte array: %s",err.Error())
+		return
 	}
-	log.Debug("payload size:%d",payloadSize)
-	payload := make([]byte,0)
-	log.Debug(len(payload))
-	var n int
+	if (payloadSize<0){
+		return payloadSize,errors.New(fmt.Sprintf("payload length is negative: %d",conn.RemoteAddr().String(),payloadSize))
+	}
+	return payloadSize,nil
+}
+
+func readPayload(conn net.Conn,payloadSize int64 ) (payload []byte,err error) {
+	log.Debug("expected payload size:%d",payloadSize)
+	payload = make([]byte,0)
 	var sum int64
 	for(sum<payloadSize) {
 		tempPayload := make ([]byte,payloadSize)
-		n, err = conn.Read(tempPayload)
+		n, err := conn.Read(tempPayload)
+		log.Debug("read %d bytes from tcp conn",n)
 		if err != nil {
-			log.Error("error reading data from %s:%s", conn.RemoteAddr().String(), err.Error())
-			conn.Write([]byte(err.Error()))
-			return
+			return payload,err
 		}
 		payload = append(payload,tempPayload[:n]...)
 		sum = sum + int64(n)
 	}
+	log.Debug("summary: read %d bytes from tcp conn",sum)
+	log.Debug("actual payload size:%d",len(payload))
 
-	log.Debug("read %d bytes from tcp conn",sum)
+	return payload,nil
+}
+
+func readPayload2 (conn net.Conn,payloadSize int64 ) (payload []byte,err error) {
+	log.Debug("expected payload size:%d",payloadSize)
+	payload = make([]byte,payloadSize)
+	reader := bufio.NewReader(conn)
+	n,err := io.ReadFull(reader,payload)
+	if err != nil {
+		return
+	}
+	err = ioutil.WriteFile("dump1.txt",payload,0777)
+	if err != nil {
+		log.Error("error writing file: %s",err.Error())
+	}
+	log.Debug("summary: read %d bytes from tcp conn",n)
+	log.Debug("actual payload size:%d",len(payload))
+
+	return payload,nil
+}
+
+func tcpHandler(conn net.Conn){
+	log.Debug("Handler started for %s",conn.RemoteAddr().String())
+
+	defer conn.Close()
+
+	payloadSize,err := readMetaData(conn)
+	if err != nil {
+		writeErrorResponse(conn,"error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
+		return
+	}
+	payload,err := readPayload2(conn,payloadSize)
+	if err != nil {
+		writeErrorResponse(conn,"error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
+		return
+	}
 
 	packet := &EmailMessageWithByteArrayPacket{}
 	err = proto.Unmarshal(payload,packet)
 	if err != nil {
-		log.Error("error deserilazing email packet from %s:%s",conn.RemoteAddr().String(),err.Error())
-		conn.Write([]byte(fmt.Sprintf("error deserilazing email packet from %s:%s",conn.RemoteAddr().String(),err.Error())))
+		writeErrorResponse(conn,"error deserializing email packet from %s: %s",conn.RemoteAddr().String(),err.Error())
 		return
 	}
+
+	log.Debug("Messages deserialized: %d",len(packet.GetMessages()))
 
 	for _,email:=range packet.Messages {
 
@@ -109,17 +158,15 @@ func tcpHandler(conn net.Conn){
 		msg, err := ParseMessage(entry.Recipients, entry.Sender, entry.Data)
 		if err != nil {
 			var rcpt = strings.Join(entry.Recipients, ";")
-			log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
-			conn.Write([]byte(email.GetMessageId()+" "+ErrMessageError.Error()))
-			return
+			writeErrorResponse(conn,"incorrect msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s",email.GetMessageId(),conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
+			continue
 		}
 
-		log.Info("msg %s from %s TCP RECEIVED", msg.String(), conn.RemoteAddr().String())
+		//log.Info("msg %s from %s TCP RECEIVED", msg.String(), conn.RemoteAddr().String())
 
 		if len(entry.Recipients) > conf.MaxRecipients || len(entry.Recipients) == 0 {
-			log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
-			conn.Write([]byte(email.GetMessageId()+" "+ErrTooManyRecipients.Error()))
-			return
+			writeErrorResponse(conn,"message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+			continue
 		}
 
 		var entries []QueueEntry
@@ -128,9 +175,8 @@ func tcpHandler(conn net.Conn){
 
 			mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
 			if err != nil {
-				log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
-				conn.Write([]byte(email.GetMessageId()+" "+ErrDomainNotFound.Error()))
-				return
+				writeErrorResponse(conn,"message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+				continue
 			}
 
 			if conf.RelayModeEnabled {
@@ -151,6 +197,7 @@ func tcpHandler(conn net.Conn){
 		conn.Write([]byte(email.GetMessageId()+" "+ErrStatusSuccess.Error()))
 
 	}
+
 	<-TCPLimiter
 	return
 }

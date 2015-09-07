@@ -160,3 +160,7 @@ func StartSMTPServer(){
 		panic(err.Error())
 	}
 }
+
+func StopSMTPServer(){
+	smtpServer.Stop()
+}
