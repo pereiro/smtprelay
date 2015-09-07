@@ -25,6 +25,7 @@ type Conf struct {
 	MaxRecipients           int
 	ListenTCPPort           string
 	TCPMaxConnections       int
+	TCPTimeoutSeconds       int
 }
 
 func (cf *Conf) Load(filename string) error {

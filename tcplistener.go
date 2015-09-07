@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -84,35 +85,11 @@ func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 
 func readPayload(conn net.Conn, payloadSize int64) (payload []byte, err error) {
 	log.Debug("expected payload size:%d", payloadSize)
-	payload = make([]byte, 0)
-	var sum int64
-	for sum < payloadSize {
-		tempPayload := make([]byte, payloadSize)
-		n, err := conn.Read(tempPayload)
-		log.Debug("read %d bytes from tcp conn", n)
-		if err != nil {
-			return payload, err
-		}
-		payload = append(payload, tempPayload[:n]...)
-		sum = sum + int64(n)
-	}
-	log.Debug("summary: read %d bytes from tcp conn", sum)
-	log.Debug("actual payload size:%d", len(payload))
-
-	return payload, nil
-}
-
-func readPayload2(conn net.Conn, payloadSize int64) (payload []byte, err error) {
-	log.Debug("expected payload size:%d", payloadSize)
 	payload = make([]byte, payloadSize)
 	reader := bufio.NewReader(conn)
 	n, err := io.ReadFull(reader, payload)
 	if err != nil {
 		return
-	}
-	err = ioutil.WriteFile("dump1.txt", payload, 0777)
-	if err != nil {
-		log.Error("error writing file: %s", err.Error())
 	}
 	log.Debug("summary: read %d bytes from tcp conn", n)
 	log.Debug("actual payload size:%d", len(payload))
@@ -120,9 +97,26 @@ func readPayload2(conn net.Conn, payloadSize int64) (payload []byte, err error) 
 	return payload, nil
 }
 
+func unzipPayload(payload []byte) (unzippedPayload []byte, err error) {
+
+	reader := bytes.NewReader(payload)
+	gzipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		return
+	}
+	defer gzipReader.Close()
+	unzippedPayload, err = ioutil.ReadAll(gzipReader)
+	if err != nil {
+		return
+	}
+	log.Debug("unzipped data size: %d", len(unzippedPayload))
+	return
+}
+
 func tcpHandler(conn net.Conn) {
 	log.Debug("Handler started for %s", conn.RemoteAddr().String())
 
+	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(conf.TCPTimeoutSeconds)))
 	defer conn.Close()
 
 	payloadSize, err := readMetaData(conn)
@@ -130,10 +124,14 @@ func tcpHandler(conn net.Conn) {
 		writeErrorResponse(conn, "error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
-	payload, err := readPayload2(conn, payloadSize)
+	compressedPayload, err := readPayload(conn, payloadSize)
 	if err != nil {
 		writeErrorResponse(conn, "error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
+	}
+	payload, err := unzipPayload(compressedPayload)
+	if err != nil {
+		log.Error("error uncompressing payload: %s", err.Error())
 	}
 
 	packet := &EmailMessageWithByteArrayPacket{}
