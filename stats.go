@@ -15,26 +15,26 @@ func GetMailQueueLength() int64 {
 }
 
 var (
-	MailHandlersCounter int64
 	MailSendersCounter  int64
+	MailHandlersCounter int64
 )
 
 type QueueStats struct {
-	OverallCounter        int64
-	ErrorBufferCounter    int64
-	MailBufferCounter     int64
-	MailHandlersCounter   int64
-	MailSendersCounter    int64
-	MailExtractorsCounter int64
+	OverallCounter       int64
+	ErrorBufferCounter   int64
+	MailBufferCounter    int64
+	OutboundSMTPConnects int64
+	InboundTCPConnects   int64
+	InboundSMTPConnects  int64
 }
 
 func GetStatistics() (data []byte, err error) {
 	var stats QueueStats
-	stats.MailHandlersCounter = MailHandlersCounter
-	stats.MailSendersCounter = MailSendersCounter
+	stats.OutboundSMTPConnects = MailSendersCounter
+	stats.InboundSMTPConnects = MailHandlersCounter
 	stats.ErrorBufferCounter = int64(len(ErrorChannel))
 	stats.MailBufferCounter = int64(len(MailChannel))
-	stats.MailExtractorsCounter = int64(len(ExtractorLimiter))
+	stats.InboundTCPConnects = int64(len(TCPLimiter))
 	stats.OverallCounter = stats.ErrorBufferCounter + stats.MailBufferCounter
 	data, err = json.Marshal(stats)
 	if err != nil {
@@ -43,20 +43,20 @@ func GetStatistics() (data []byte, err error) {
 	return data, err
 }
 
-func MailHandlersIncreaseCounter(count int) {
-	atomic.AddInt64(&MailHandlersCounter, int64(count))
-}
-
-func MailHandlersDecreaseCounter(count int) {
-	atomic.AddInt64(&MailHandlersCounter, -int64(count))
-}
-
 func MailSendersIncreaseCounter(count int) {
 	atomic.AddInt64(&MailSendersCounter, int64(count))
 }
 
 func MailSendersDecreaseCounter(count int) {
 	atomic.AddInt64(&MailSendersCounter, -int64(count))
+}
+
+func MailHandlersIncreaseCounter(count int) {
+	atomic.AddInt64(&MailHandlersCounter, int64(count))
+}
+
+func MailHandlersDecreaseCounter(count int) {
+	atomic.AddInt64(&MailHandlersCounter, -int64(count))
 }
 
 func StatisticHandler(w http.ResponseWriter, r *http.Request) {

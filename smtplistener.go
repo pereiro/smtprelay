@@ -103,6 +103,8 @@ func (sl *StoppableListener) Stop() {
 }
 
 func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
+	MailHandlersIncreaseCounter(1)
+	defer MailHandlersDecreaseCounter(1)
 	msg, err := ParseMessage(env.Recipients, env.Sender, env.Data)
 	if err != nil {
 		var rcpt = strings.Join(env.Recipients, ";")

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	//	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -78,15 +77,6 @@ func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 		return 0, err
 	}
 	payloadSize = int64(uintSize)
-	//	reader := bytes.NewReader(metadata)
-	//	log.Debug("metadata dump:%v", metadata)
-	//	var intSize int32
-	//	err = binary.Read(reader, binary.LittleEndian, &intSize)
-	//	log.Debug("metadata value: %d",intSize)
-	//	if err != nil {
-	//		return
-	//	}
-	//	payloadSize = int64(intSize)
 	if payloadSize < 0 {
 		return payloadSize, errors.New(fmt.Sprintf("payload length is negative: %d", conn.RemoteAddr().String(), payloadSize))
 	}
@@ -107,7 +97,7 @@ func readPayload(conn net.Conn, payloadSize int64) (payload []byte, err error) {
 	return payload, nil
 }
 
-func unzipPayload(payload []byte) (unzippedPayload []byte, err error) {
+func uncompressPayload(payload []byte) (unzippedPayload []byte, err error) {
 
 	reader := bytes.NewReader(payload)
 	gzipReader, err := gzip.NewReader(reader)
@@ -142,9 +132,10 @@ func tcpHandler(conn net.Conn) {
 		writeErrorResponse(conn, "error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
-	payload, err := unzipPayload(compressedPayload)
+	payload, err := uncompressPayload(compressedPayload)
 	if err != nil {
-		log.Error("error uncompressing payload: %s", err.Error())
+		writeErrorResponse(conn, "error uncompressing payload from %s: %s", conn.RemoteAddr().String(), err.Error())
+		return
 	}
 
 	packet := &EmailMessageWithByteArrayPacket{}
@@ -163,16 +154,14 @@ func tcpHandler(conn net.Conn) {
 		entry.Recipients = email.GetRecipients()
 		entry.Sender = email.GetSender()
 
-		//log.Info("Data received from %s:%v", conn.RemoteAddr().String(), string(entry.Data))
-
 		msg, err := ParseMessage(entry.Recipients, entry.Sender, entry.Data)
 		if err != nil {
 			var rcpt = strings.Join(entry.Recipients, ";")
-			writeErrorResponse(conn, "incorrect msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", email.GetMessageId(), conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
+			writeErrorResponse(conn, "msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", email.GetMessageId(), conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
 			continue
 		}
 
-		//log.Info("msg %s from %s TCP RECEIVED", msg.String(), conn.RemoteAddr().String())
+		log.Info("msg %s from %s RECEIVED", msg.String(), conn.RemoteAddr().String())
 
 		if len(entry.Recipients) > conf.MaxRecipients || len(entry.Recipients) == 0 {
 			writeErrorResponse(conn, "message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
@@ -204,8 +193,8 @@ func tcpHandler(conn net.Conn) {
 		for _, entry := range entries {
 			PushMail(entry)
 		}
-		conn.Write([]byte(email.GetMessageId() + " " + ErrStatusSuccess.Error()))
 
 	}
+	conn.Write([]byte("OK"))
 	return
 }

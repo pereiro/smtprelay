@@ -6,8 +6,7 @@ import (
 )
 
 var (
-	SenderLimiter    chan interface{}
-	ExtractorLimiter chan interface{}
+	SenderLimiter chan interface{}
 )
 
 func StartSender() {
@@ -17,19 +16,6 @@ func StartSender() {
 }
 
 func StartErrorHandler() {
-
-	//	for {
-	//		if GetErrorQueueLength() == 0 || GetMailQueueLength() > 0 {
-	//			time.Sleep(1000 * time.Millisecond)
-	//		} else {
-	//			entry, success := ExtractError()
-	//			if success {
-	//				PushMail(entry)
-	//			} else {
-	//				time.Sleep(1000 * time.Millisecond)
-	//			}
-	//		}
-	//	}
 	for {
 		entry := ExtractError()
 		PushMail(entry)
@@ -50,7 +36,6 @@ func SendMail(entry QueueEntry) {
 		MailSendersDecreaseCounter(1)
 		<-SenderLimiter
 	}()
-	//log.Info("msg %s READY for processing", entry.String())
 	var err error
 	var data []byte
 	var signed = ""
