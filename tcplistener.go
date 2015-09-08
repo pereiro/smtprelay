@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
-	"encoding/binary"
+	//	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	METADATA_LENGTH_BYTES = 8
+	METADATA_LENGTH_BYTES = 4
 )
 
 var (
@@ -61,8 +61,8 @@ func StopTCPListener() {
 }
 
 func writeErrorResponse(conn net.Conn, arg0 string, args ...interface{}) {
-	log.Error(arg0, args)
-	conn.Write([]byte(fmt.Sprintf(arg0, args)))
+	log.Error(arg0, args...)
+	conn.Write([]byte(fmt.Sprintf(arg0, args...)))
 }
 
 func readMetaData(conn net.Conn) (payloadSize int64, err error) {
@@ -71,12 +71,22 @@ func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 	if err != nil {
 		return
 	}
-	reader := bytes.NewReader(metadata)
 	log.Debug("metadata dump:%v", metadata)
-	err = binary.Read(reader, binary.LittleEndian, &payloadSize)
+	buf := proto.NewBuffer(metadata)
+	uintSize, err := buf.DecodeFixed32()
 	if err != nil {
-		return
+		return 0, err
 	}
+	payloadSize = int64(uintSize)
+	//	reader := bytes.NewReader(metadata)
+	//	log.Debug("metadata dump:%v", metadata)
+	//	var intSize int32
+	//	err = binary.Read(reader, binary.LittleEndian, &intSize)
+	//	log.Debug("metadata value: %d",intSize)
+	//	if err != nil {
+	//		return
+	//	}
+	//	payloadSize = int64(intSize)
 	if payloadSize < 0 {
 		return payloadSize, errors.New(fmt.Sprintf("payload length is negative: %d", conn.RemoteAddr().String(), payloadSize))
 	}
@@ -117,7 +127,10 @@ func tcpHandler(conn net.Conn) {
 	log.Debug("Handler started for %s", conn.RemoteAddr().String())
 
 	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(conf.TCPTimeoutSeconds)))
-	defer conn.Close()
+	defer func() {
+		conn.Close()
+		<-TCPLimiter
+	}()
 
 	payloadSize, err := readMetaData(conn)
 	if err != nil {
@@ -194,7 +207,5 @@ func tcpHandler(conn net.Conn) {
 		conn.Write([]byte(email.GetMessageId() + " " + ErrStatusSuccess.Error()))
 
 	}
-
-	<-TCPLimiter
 	return
 }
