@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net"
 )
 
@@ -13,6 +14,10 @@ func lookupMailServer(domain string, errorCount int) (string, error) {
 	mx, err := getRoundElement(mxList, errorCount)
 	if err != nil {
 		return "", err
+	}
+
+	if len(mx.Host) == 0 {
+		return "", errors.New(fmt.Sprintf("FUCKUP : error parsing MX records. mxList:%v ; mx:%v ; errorCount:%d", mxList, mx, errorCount))
 	}
 
 	return mx.Host[:len(mx.Host)-1] + ":25", nil
