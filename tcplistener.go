@@ -118,30 +118,41 @@ func tcpHandler(conn net.Conn) {
 
 	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(conf.TCPTimeoutSeconds)))
 	defer func() {
-		conn.Close()
 		<-TCPLimiter
 	}()
 
 	payloadSize, err := readMetaData(conn)
 	if err != nil {
 		writeErrorResponse(conn, "error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
+		conn.Close()
 		return
 	}
 	compressedPayload, err := readPayload(conn, payloadSize)
 	if err != nil {
 		writeErrorResponse(conn, "error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
+		conn.Close()
 		return
 	}
 	payload, err := uncompressPayload(compressedPayload)
 	if err != nil {
 		writeErrorResponse(conn, "error uncompressing payload from %s: %s", conn.RemoteAddr().String(), err.Error())
+		conn.Close()
 		return
 	}
+
+	//	err =  ioutil.WriteFile("test.txt",payload,0777)
+	//	if err != nil {
+	//		log.Error("error writing to file",err.Error())
+	//		return
+	//	}
+
+	conn.Write([]byte("OK"))
+	conn.Close()
 
 	packet := &EmailMessageWithByteArrayPacket{}
 	err = proto.Unmarshal(payload, packet)
 	if err != nil {
-		writeErrorResponse(conn, "error deserializing email packet from %s: %s", conn.RemoteAddr().String(), err.Error())
+		log.Error("error deserializing email packet from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
 
@@ -157,14 +168,14 @@ func tcpHandler(conn net.Conn) {
 		msg, err := ParseMessage(entry.Recipients, entry.Sender, entry.Data)
 		if err != nil {
 			var rcpt = strings.Join(entry.Recipients, ";")
-			writeErrorResponse(conn, "msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", email.GetMessageId(), conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
+			log.Error("msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", email.GetMessageId(), conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
 			continue
 		}
 
 		log.Info("msg %s from %s RECEIVED", msg.String(), conn.RemoteAddr().String())
 
 		if len(entry.Recipients) > conf.MaxRecipients || len(entry.Recipients) == 0 {
-			writeErrorResponse(conn, "message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+			log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
 			continue
 		}
 
@@ -174,7 +185,7 @@ func tcpHandler(conn net.Conn) {
 
 			mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
 			if err != nil {
-				writeErrorResponse(conn, "message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+				log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 				continue
 			}
 
@@ -195,6 +206,6 @@ func tcpHandler(conn net.Conn) {
 		}
 
 	}
-	conn.Write([]byte("OK"))
+
 	return
 }
