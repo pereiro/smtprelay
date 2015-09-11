@@ -24,8 +24,10 @@ type QueueStats struct {
 	ErrorBufferCounter   int64
 	MailBufferCounter    int64
 	OutboundSMTPConnects int64
+	InboundTCPHandlers   int64
 	InboundTCPConnects   int64
 	InboundSMTPConnects  int64
+	Configuration        *Conf
 }
 
 func GetStatistics() (data []byte, err error) {
@@ -34,8 +36,10 @@ func GetStatistics() (data []byte, err error) {
 	stats.InboundSMTPConnects = MailHandlersCounter
 	stats.ErrorBufferCounter = int64(len(ErrorChannel))
 	stats.MailBufferCounter = int64(len(MailChannel))
-	stats.InboundTCPConnects = int64(len(TCPHandlersLimiter))
+	stats.InboundTCPHandlers = int64(len(TCPHandlersLimiter))
+	stats.InboundTCPConnects = int64(len(TCPConnectionsLimiter))
 	stats.OverallCounter = stats.ErrorBufferCounter + stats.MailBufferCounter
+	stats.Configuration = conf
 	data, err = json.Marshal(stats)
 	if err != nil {
 		return data, err
