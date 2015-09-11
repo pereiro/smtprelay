@@ -25,6 +25,7 @@ type Conf struct {
 	MaxRecipients           int
 	ListenTCPPort           string
 	TCPMaxConnections       int
+	TCPMaxHandlers          int
 	TCPTimeoutSeconds       int
 }
 

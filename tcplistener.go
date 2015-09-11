@@ -19,8 +19,9 @@ const (
 )
 
 var (
-	TCPLimiter         chan int
-	TCPListenerStarted bool
+	TCPHandlersLimiter    chan int
+	TCPConnectionsLimiter chan int
+	TCPListenerStarted    bool
 )
 
 func StartTCPServer() {
@@ -31,7 +32,8 @@ func StartTCPServer() {
 		panic(err.Error())
 	}
 	defer l.Close()
-	TCPLimiter = make(chan int, conf.TCPMaxConnections)
+	TCPHandlersLimiter = make(chan int, conf.TCPMaxHandlers)
+	TCPConnectionsLimiter = make(chan int, conf.TCPMaxConnections)
 	TCPListenerStarted = true
 	log.Info("SYSTEM: Started TCP listener at  " + conf.ListenTCPPort)
 	for TCPListenerStarted {
@@ -41,7 +43,7 @@ func StartTCPServer() {
 			continue
 		}
 		log.Info("connection accepted from %s", conn.RemoteAddr().String())
-		TCPLimiter <- 0
+		TCPConnectionsLimiter <- 0
 		go tcpHandler(conn)
 	}
 	return
@@ -50,9 +52,9 @@ func StartTCPServer() {
 func StopTCPListener() {
 	log.Info("SYSTEM: Stopping TCP listener")
 	TCPListenerStarted = false
-	if len(TCPLimiter) > 0 {
-		log.Info("Waiting for processing existing %d tcp connections", len(TCPLimiter))
-		for len(TCPLimiter) > 0 {
+	if len(TCPHandlersLimiter) > 0 {
+		log.Info("Waiting for processing existing %d tcp connections", len(TCPHandlersLimiter))
+		for len(TCPHandlersLimiter) > 0 {
 			time.Sleep(time.Millisecond * 100)
 		}
 	}
@@ -62,6 +64,14 @@ func StopTCPListener() {
 func writeErrorResponse(conn net.Conn, arg0 string, args ...interface{}) {
 	log.Error(arg0, args...)
 	conn.Write([]byte(fmt.Sprintf(arg0, args...)))
+	conn.Close()
+	<-TCPConnectionsLimiter
+}
+
+func writeSuccessResponse(conn net.Conn) {
+	conn.Write([]byte("OK"))
+	conn.Close()
+	<-TCPConnectionsLimiter
 }
 
 func readMetaData(conn net.Conn) (payloadSize int64, err error) {
@@ -114,29 +124,27 @@ func uncompressPayload(payload []byte) (unzippedPayload []byte, err error) {
 }
 
 func tcpHandler(conn net.Conn) {
+	TCPHandlersLimiter <- 0
 	log.Debug("Handler started for %s", conn.RemoteAddr().String())
 
 	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(conf.TCPTimeoutSeconds)))
 	defer func() {
-		<-TCPLimiter
+		<-TCPHandlersLimiter
 	}()
 
 	payloadSize, err := readMetaData(conn)
 	if err != nil {
 		writeErrorResponse(conn, "error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
-		conn.Close()
 		return
 	}
 	compressedPayload, err := readPayload(conn, payloadSize)
 	if err != nil {
 		writeErrorResponse(conn, "error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
-		conn.Close()
 		return
 	}
 	payload, err := uncompressPayload(compressedPayload)
 	if err != nil {
 		writeErrorResponse(conn, "error uncompressing payload from %s: %s", conn.RemoteAddr().String(), err.Error())
-		conn.Close()
 		return
 	}
 
@@ -146,8 +154,7 @@ func tcpHandler(conn net.Conn) {
 	//		return
 	//	}
 
-	conn.Write([]byte("OK"))
-	conn.Close()
+	writeSuccessResponse(conn)
 
 	packet := &EmailMessageWithByteArrayPacket{}
 	err = proto.Unmarshal(payload, packet)

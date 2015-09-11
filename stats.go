@@ -34,7 +34,7 @@ func GetStatistics() (data []byte, err error) {
 	stats.InboundSMTPConnects = MailHandlersCounter
 	stats.ErrorBufferCounter = int64(len(ErrorChannel))
 	stats.MailBufferCounter = int64(len(MailChannel))
-	stats.InboundTCPConnects = int64(len(TCPLimiter))
+	stats.InboundTCPConnects = int64(len(TCPHandlersLimiter))
 	stats.OverallCounter = stats.ErrorBufferCounter + stats.MailBufferCounter
 	data, err = json.Marshal(stats)
 	if err != nil {
