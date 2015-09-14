@@ -17,7 +17,7 @@ func lookupMailServer(domain string, errorCount int) (string, error) {
 	}
 
 	if len(mx.Host) == 0 {
-		return "", errors.New(fmt.Sprintf("FUCKUP : error parsing MX records. mxList:%v ; mx:%v ; errorCount:%d", mxList, mx, errorCount))
+		return "", errors.New(fmt.Sprintf("incorrect MX record for domain %s - %v;", domain, mx))
 	}
 
 	return mx.Host[:len(mx.Host)-1] + ":25", nil
