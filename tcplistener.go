@@ -74,6 +74,11 @@ func writeSuccessResponse(conn net.Conn) {
 	<-TCPConnectionsLimiter
 }
 
+func closeNoResponse(conn net.Conn) {
+	conn.Close()
+	<-TCPConnectionsLimiter
+}
+
 func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 	metadata := make([]byte, METADATA_LENGTH_BYTES)
 	_, err = conn.Read(metadata)
@@ -134,6 +139,10 @@ func tcpHandler(conn net.Conn) {
 
 	payloadSize, err := readMetaData(conn)
 	if err != nil {
+		if err == io.EOF {
+			closeNoResponse(conn)
+			return
+		}
 		writeErrorResponse(conn, "error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
