@@ -42,7 +42,7 @@ func StartTCPServer() {
 			log.Error("Error accepting tcp connection: ", err.Error())
 			continue
 		}
-		log.Info("connection accepted from %s", conn.RemoteAddr().String())
+		log.Debug("connection accepted from %s", conn.RemoteAddr().String())
 		TCPConnectionsLimiter <- 0
 		go tcpHandler(conn)
 	}
