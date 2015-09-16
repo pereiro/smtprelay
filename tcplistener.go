@@ -64,13 +64,17 @@ func StopTCPListener() {
 func writeErrorResponse(conn net.Conn, arg0 string, args ...interface{}) {
 	log.Error(arg0, args...)
 	conn.Write([]byte(fmt.Sprintf(arg0, args...)))
-	conn.Close()
+	if err := conn.Close(); err != nil {
+		log.Error("error close connection (error response): %s", err.Error())
+	}
 	<-TCPConnectionsLimiter
 }
 
 func writeSuccessResponse(conn net.Conn) {
 	conn.Write([]byte("OK"))
-	conn.Close()
+	if err := conn.Close(); err != nil {
+		log.Error("error close connection (success response): %s", err.Error())
+	}
 	<-TCPConnectionsLimiter
 }
 
