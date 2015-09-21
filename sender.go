@@ -59,12 +59,14 @@ func SendMail(entry QueueEntry) {
 		smtpError := ParseOutcomingError(err.Error())
 		if smtpError.Code/100 == 5 {
 			log.Error("msg %s DROPPED: %s", entry.String(), smtpError.Error())
+			MailDroppedIncreaseCounter(1)
 			return
 		} else {
 			entry.ErrorCount += 1
 			entry.Error = smtpError
 			if entry.ErrorCount >= conf.DeferredMailMaxErrors {
 				log.Error("msg %s DEFER LIMIT=(%d/%d) DROPPED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, smtpError.Error())
+				MailDroppedIncreaseCounter(1)
 				return
 			}
 			entry.QueueTime = time.Now()
@@ -79,12 +81,12 @@ func SendMail(entry QueueEntry) {
 					log.Warn("msg %s (%d/%d) (next attempt at %s ) can't find secondary MX record, old MX will be used: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, oldMX)
 				}
 			}
-
 			PushError(entry)
 			log.Error("msg %s (%d/%d) (next attempt at %s ) DEFERRED: %s", entry.String(), entry.ErrorCount, conf.DeferredMailMaxErrors, entry.UnqueueTime, smtpError.Error())
 		}
 	} else {
 		log.Info("msg %s SENT%s: %s", entry.String(), signed, ErrStatusSuccess.Error())
+		MailSentIncreaseCounter(1)
 	}
 
 }

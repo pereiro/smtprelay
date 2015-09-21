@@ -109,6 +109,7 @@ func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 	if err != nil {
 		var rcpt = strings.Join(env.Recipients, ";")
 		log.Error("incorrect msg from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", peer.Addr.String(), env.Sender, rcpt, err.Error(), ErrMessageError.Error())
+		MailDroppedIncreaseCounter(1)
 		return ErrMessageError
 	}
 
@@ -116,6 +117,7 @@ func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 	if len(env.Recipients) > conf.MaxRecipients || len(env.Recipients) == 0 {
 		log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+		MailDroppedIncreaseCounter(1)
 		return ErrTooManyRecipients
 	}
 
@@ -126,6 +128,7 @@ func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 		mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
 		if err != nil {
 			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+			MailDroppedIncreaseCounter(1)
 			return ErrDomainNotFound
 		}
 

@@ -17,17 +17,23 @@ func GetMailQueueLength() int64 {
 var (
 	MailSendersCounter  int64
 	MailHandlersCounter int64
+	MaxQueueCounter     int64
+	MailSentCounter     int64
+	MailDroppedCounter  int64
 )
 
 type QueueStats struct {
-	OverallCounter       int64
-	ErrorBufferCounter   int64
-	MailBufferCounter    int64
-	OutboundSMTPConnects int64
-	InboundTCPHandlers   int64
-	InboundTCPConnects   int64
-	InboundSMTPConnects  int64
-	Configuration        *Conf
+	OverallCounter               int64
+	ErrorBufferCounter           int64
+	MailBufferCounter            int64
+	OutboundSMTPConnects         int64
+	InboundTCPHandlers           int64
+	InboundTCPConnects           int64
+	InboundSMTPConnects          int64
+	MaxQueueSizeSinceLastRestart int64
+	MailSentSinceLastRestart     int64
+	MailDroppedSinceLastRestart  int64
+	Configuration                *Conf
 }
 
 func GetStatistics() (data []byte, err error) {
@@ -45,6 +51,20 @@ func GetStatistics() (data []byte, err error) {
 		return data, err
 	}
 	return data, err
+}
+
+func MailSentIncreaseCounter(count int) {
+	atomic.AddInt64(&MailSentCounter, int64(count))
+}
+
+func MailDroppedIncreaseCounter(count int) {
+	atomic.AddInt64(&MailDroppedCounter, int64(count))
+}
+
+func MailQueueCheckMax() {
+	if currentValue := GetMailQueueLength() + GetErrorQueueLength(); currentValue > MaxQueueCounter {
+		atomic.StoreInt64(&MaxQueueCounter, currentValue)
+	}
 }
 
 func MailSendersIncreaseCounter(count int) {

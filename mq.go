@@ -41,6 +41,7 @@ func InitQueues() error {
 }
 
 func PushMail(entry QueueEntry) {
+	MailQueueCheckMax()
 	MailChannel <- entry
 	return
 }
@@ -51,6 +52,7 @@ func PopMail() (entry QueueEntry) {
 }
 
 func PushError(entry QueueEntry) {
+	MailQueueCheckMax()
 	ErrorChannel <- entry
 	return
 }

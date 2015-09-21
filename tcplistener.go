@@ -196,6 +196,7 @@ func tcpHandler(conn net.Conn) {
 		if err != nil {
 			var rcpt = strings.Join(entry.Recipients, ";")
 			log.Error("msg %s from %s (sender:%s;rcpt:%s) - %s DROPPED: %s", email.GetMessageId(), conn.RemoteAddr().String(), entry.Sender, rcpt, err.Error(), ErrMessageError.Error())
+			MailDroppedIncreaseCounter(1)
 			continue
 		}
 
@@ -203,6 +204,7 @@ func tcpHandler(conn net.Conn) {
 
 		if len(entry.Recipients) > conf.MaxRecipients || len(entry.Recipients) == 0 {
 			log.Error("message %s rcpt count limited to %d, DROPPED: %s", msg.String(), conf.MaxRecipients, ErrTooManyRecipients.Error())
+			MailDroppedIncreaseCounter(1)
 			continue
 		}
 
@@ -213,6 +215,7 @@ func tcpHandler(conn net.Conn) {
 			mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
 			if err != nil {
 				log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
+				MailDroppedIncreaseCounter(1)
 				continue
 			}
 
