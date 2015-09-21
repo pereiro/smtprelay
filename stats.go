@@ -114,7 +114,7 @@ func MailDroppedIncreaseCounter(count int) {
 }
 
 func MailQueueCheckMax() {
-	MailMaxQueueChannel <- 1
+	MailMaxQueueChannel <- GetErrorQueueLength() + GetMailQueueLength()
 }
 
 func MailSendersIncreaseCounter(count int) {
