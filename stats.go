@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"math"
 	"net/http"
 )
 
@@ -15,7 +14,7 @@ func GetMailQueueLength() int64 {
 }
 
 const (
-	STATISTICS_REFRESH_INTERVAL_SECONDS = 5
+	STATISTICS_CHANNELS_SIZE = 100000
 )
 
 var (
@@ -32,11 +31,11 @@ var (
 )
 
 func InitStatistics() {
-	MailSentChannel = make(chan int, math.MaxInt32)
-	MailDroppedChannel = make(chan int, math.MaxInt32)
-	MailMaxQueueChannel = make(chan int, math.MaxInt32)
-	MailHandlersChannel = make(chan int, math.MaxInt32)
-	MailSendersChannel = make(chan int, math.MaxInt32)
+	MailSentChannel = make(chan int)
+	MailDroppedChannel = make(chan int, STATISTICS_CHANNELS_SIZE)
+	MailMaxQueueChannel = make(chan int, STATISTICS_CHANNELS_SIZE)
+	MailHandlersChannel = make(chan int, STATISTICS_CHANNELS_SIZE)
+	MailSendersChannel = make(chan int, STATISTICS_CHANNELS_SIZE)
 
 	go func() {
 		for val := range MailSentChannel {
