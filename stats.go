@@ -144,6 +144,7 @@ func StatisticHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartStatisticServer() {
+	InitStatistics()
 	http.HandleFunc("/", StatisticHandler)
 	http.ListenAndServe(":"+conf.StatisticPort, nil)
 }
