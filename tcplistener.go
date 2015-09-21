@@ -79,6 +79,7 @@ func writeSuccessResponse(conn net.Conn) {
 }
 
 func closeNoResponse(conn net.Conn) {
+	log.Debug("close no response from %s", conn.RemoteAddr().String())
 	conn.Close()
 	<-TCPConnectionsLimiter
 }
