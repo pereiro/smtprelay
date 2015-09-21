@@ -71,6 +71,7 @@ func writeErrorResponse(conn net.Conn, arg0 string, args ...interface{}) {
 }
 
 func writeSuccessResponse(conn net.Conn) {
+	log.Debug("success response to %s", conn.RemoteAddr().String())
 	conn.Write([]byte("OK"))
 	if err := conn.Close(); err != nil {
 		log.Error("error close connection (success response): %s", err.Error())
@@ -90,7 +91,7 @@ func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 	if err != nil {
 		return
 	}
-	log.Debug("metadata dump:%v", metadata)
+	log.Debug("metadata dump from %s :%v", conn.RemoteAddr().String(), metadata)
 	buf := proto.NewBuffer(metadata)
 	uintSize, err := buf.DecodeFixed32()
 	if err != nil {
@@ -98,21 +99,21 @@ func readMetaData(conn net.Conn) (payloadSize int64, err error) {
 	}
 	payloadSize = int64(uintSize)
 	if payloadSize < 0 {
-		return payloadSize, errors.New(fmt.Sprintf("payload length is negative: %d", conn.RemoteAddr().String(), payloadSize))
+		return payloadSize, errors.New(fmt.Sprintf("payload length is negative %s: %d", conn.RemoteAddr().String(), payloadSize))
 	}
 	return payloadSize, nil
 }
 
 func readPayload(conn net.Conn, payloadSize int64) (payload []byte, err error) {
-	log.Debug("expected payload size:%d", payloadSize)
+	log.Debug("expected payload size from %s :%d", conn.RemoteAddr().String(), payloadSize)
 	payload = make([]byte, payloadSize)
 	reader := bufio.NewReader(conn)
 	n, err := io.ReadFull(reader, payload)
 	if err != nil {
 		return
 	}
-	log.Debug("summary: read %d bytes from tcp conn", n)
-	log.Debug("actual payload size:%d", len(payload))
+	log.Debug("summary: read %d bytes from tcp conn %s", n, conn.RemoteAddr().String())
+	log.Debug("actual payload size from %s:%d", conn.RemoteAddr().String(), len(payload))
 
 	return payload, nil
 }
@@ -139,6 +140,7 @@ func tcpHandler(conn net.Conn) {
 
 	conn.SetDeadline(time.Now().Add(time.Second * time.Duration(conf.TCPTimeoutSeconds)))
 	defer func() {
+		log.Debug("Handler released for %s", conn.RemoteAddr().String())
 		<-TCPHandlersLimiter
 	}()
 
@@ -151,11 +153,13 @@ func tcpHandler(conn net.Conn) {
 		writeErrorResponse(conn, "error reading metadata from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
+
 	compressedPayload, err := readPayload(conn, payloadSize)
 	if err != nil {
 		writeErrorResponse(conn, "error reading payload data from %s: %s", conn.RemoteAddr().String(), err.Error())
 		return
 	}
+	log.Debug("uncompressing payload from %s", conn.RemoteAddr().String())
 	payload, err := uncompressPayload(compressedPayload)
 	if err != nil {
 		writeErrorResponse(conn, "error uncompressing payload from %s: %s", conn.RemoteAddr().String(), err.Error())
@@ -170,6 +174,8 @@ func tcpHandler(conn net.Conn) {
 
 	writeSuccessResponse(conn)
 
+	log.Debug("unmarshalling payload from %s", conn.RemoteAddr().String())
+
 	packet := &EmailMessageWithByteArrayPacket{}
 	err = proto.Unmarshal(payload, packet)
 	if err != nil {
@@ -177,7 +183,7 @@ func tcpHandler(conn net.Conn) {
 		return
 	}
 
-	log.Debug("Messages deserialized: %d", len(packet.GetMessages()))
+	log.Debug("Messages deserialized from %s: %d", conn.RemoteAddr().String(), len(packet.GetMessages()))
 
 	for _, email := range packet.Messages {
 
