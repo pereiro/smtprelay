@@ -26,7 +26,7 @@ func lookupMailServer(domain string, errorCount int) (string, error) {
 	host := mx.Host[:len(mx.Host)-1]
 
 	if host == "localhost" || host == "127.0.0.1" {
-		return "",errors.New(fmt.Sprintf("WTF? %s is invalid MX record for domain %s",mx,domain))
+		return "",errors.New(fmt.Sprintf("WTF? %s is invalid MX record for domain %s",host,domain))
 	}
 
 	return mx.Host[:len(mx.Host)-1] + ":25", nil
