@@ -7,6 +7,9 @@ import (
 )
 
 func lookupMailServer(domain string, errorCount int) (string, error) {
+	if domain == "localhost" || domain == "127.0.0.1" {
+		return "",errors.New(fmt.Sprintf("WTF? %s is invalid domain",domain))
+	}
 	mxList, err := net.LookupMX(domain)
 	if err != nil {
 		return "", err
@@ -18,6 +21,12 @@ func lookupMailServer(domain string, errorCount int) (string, error) {
 
 	if len(mx.Host) == 0 {
 		return "", errors.New(fmt.Sprintf("incorrect MX record for domain %s - %v;", domain, mx))
+	}
+
+	host := mx.Host[:len(mx.Host)-1]
+
+	if host == "localhost" || host == "127.0.0.1" {
+		return "",errors.New(fmt.Sprintf("WTF? %s is invalid MX record for domain %s",mx,domain))
 	}
 
 	return mx.Host[:len(mx.Host)-1] + ":25", nil
