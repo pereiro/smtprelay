@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/twinj/uuid"
+	"smtprelay/uuid"
 	"net/mail"
 	"strings"
 )
