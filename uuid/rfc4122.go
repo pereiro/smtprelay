@@ -43,7 +43,7 @@ var (
 )
 
 func init() {
-	seed.Seed((int64(timestamp())^int64(gregorianToUNIXOffset))*0x6ba7b814<<0x6ba7b812 | 1391463463)
+	// math/rand is automatically seeded on the supported Go versions (1.23+).
 	state = State{
 		randomNode:     true,
 		randomSequence: true,

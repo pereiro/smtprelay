@@ -1,9 +1,9 @@
 package smtpd_test
 
 import (
-	"bitbucket.org/chrj/smtpd"
 	"errors"
 	"net/smtp"
+	"smtprelay/smtpd"
 	"strings"
 )
 

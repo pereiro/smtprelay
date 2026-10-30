@@ -1,45 +1,51 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
 
-func lookupMailServer(domain string, errorCount int) (string, error) {
-	if domain == "localhost" || domain == "127.0.0.1" {
-		return "",errors.New(fmt.Sprintf("WTF? %s is invalid domain",domain))
+func lookupDeliveryServers(domain string) ([]string, error) {
+	if conf.RelayModeEnabled {
+		return []string{conf.RelayServer}, nil
+	}
+	return lookupMailServers(domain)
+}
+
+func lookupMailServers(domain string) ([]string, error) {
+	domain = strings.TrimSuffix(strings.ToLower(domain), ".")
+	if invalidMailHost(domain) {
+		return nil, fmt.Errorf("invalid recipient domain %q", domain)
 	}
 	mxList, err := net.LookupMX(domain)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	mx, err := getRoundElement(mxList, errorCount)
-	if err != nil {
-		return "", err
-	}
-
-	if len(mx.Host) == 0 {
-		return "", errors.New(fmt.Sprintf("incorrect MX record for domain %s - %v;", domain, mx))
-	}
-
-	host := mx.Host[:len(mx.Host)-1]
-
-	if host == "localhost" || host == "127.0.0.1" {
-		return "",errors.New(fmt.Sprintf("WTF? %s is invalid MX record for domain %s",host,domain))
-	}
-
-	return mx.Host[:len(mx.Host)-1] + ":25", nil
+	return mailServersFromMX(domain, mxList)
 }
 
-func getRoundElement(mxList []*net.MX, errorCount int) (mx net.MX, err error) {
-	l := len(mxList)
-	if l == 0 {
-		return mx, errors.New("MX record not found")
+func mailServersFromMX(domain string, mxList []*net.MX) ([]string, error) {
+	servers := make([]string, 0, len(mxList))
+	seen := make(map[string]bool)
+	for _, mx := range mxList {
+		if mx == nil {
+			continue
+		}
+		host := strings.TrimSuffix(strings.ToLower(mx.Host), ".")
+		if invalidMailHost(host) || seen[host] {
+			continue
+		}
+		servers = append(servers, net.JoinHostPort(host, "25"))
+		seen[host] = true
 	}
-	for errorCount >= l {
-		errorCount = errorCount - l
+	if len(servers) == 0 {
+		return nil, fmt.Errorf("no usable MX records for domain %s", domain)
 	}
-	mx = *mxList[errorCount]
-	return
+	return servers, nil
+}
+
+func invalidMailHost(host string) bool {
+	ip := net.ParseIP(host)
+	return host == "" || host == "localhost" || (ip != nil && ip.IsLoopback())
 }

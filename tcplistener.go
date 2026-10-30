@@ -212,18 +212,15 @@ func tcpHandler(conn net.Conn) {
 
 		for domain, _ := range msg.RcptDomains {
 
-			mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
+			mailServers, err := lookupDeliveryServers(domain)
 			if err != nil {
 				log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 				MailDroppedIncreaseCounter(1)
 				continue
 			}
 
-			if conf.RelayModeEnabled {
-				mailServer = conf.RelayServer
-			}
-
-			entries = append(entries, QueueEntry{MailServer: mailServer,
+			entries = append(entries, QueueEntry{
+				MailServers:     mailServers,
 				Sender:          entry.Sender,
 				Recipients:      msg.GetDomainRecipientList(domain),
 				Data:            entry.Data,

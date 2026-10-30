@@ -8,6 +8,7 @@ package uuid
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"testing"
 )
 
@@ -74,7 +75,7 @@ func TestUUID_NewV3(t *testing.T) {
 		u, u2, u3, u4,
 	}
 	for j, id := range ids {
-		i := NewV3(NamespaceURL, NewName(string(j), id))
+		i := NewV3(NamespaceURL, NewName(strconv.Itoa(j), id))
 		if Equal(id, i) {
 			t.Errorf("Expected UUIDs generated with the same namespace and different names to be different but got: %s and %s", id, i)
 		}
@@ -142,7 +143,7 @@ func TestUUID_NewV5(t *testing.T) {
 		u, u2, u3, u4,
 	}
 	for j, id := range ids {
-		i := NewV5(NamespaceURL, NewName(string(j), id))
+		i := NewV5(NamespaceURL, NewName(strconv.Itoa(j), id))
 		if Equal(id, i) {
 			t.Errorf("Expected UUIDs generated with the same namespace and different names to be different but got: %s and %s", id, i)
 		}
@@ -170,7 +171,7 @@ func TestUUID_EachIsUnique(t *testing.T) {
 	}
 	ids = make([]UUID, s)
 	for i := 0; i < s; i++ {
-		u := NewV3(NamespaceDNS, NewName(string(i), Name(goLang)))
+		u := NewV3(NamespaceDNS, NewName(strconv.Itoa(i), Name(goLang)))
 		ids[i] = u
 		for j := 0; j < i; j++ {
 			if Equal(ids[j], u) {
@@ -190,7 +191,7 @@ func TestUUID_EachIsUnique(t *testing.T) {
 	}
 	ids = make([]UUID, s)
 	for i := 0; i < s; i++ {
-		u := NewV5(NamespaceDNS, NewName(string(i), Name(goLang)))
+		u := NewV5(NamespaceDNS, NewName(strconv.Itoa(i), Name(goLang)))
 		ids[i] = u
 		for j := 0; j < i; j++ {
 			if Equal(ids[j], u) {

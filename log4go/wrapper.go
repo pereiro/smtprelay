@@ -224,7 +224,6 @@ func Warn(arg0 interface{}, args ...interface{}) error {
 		Global.intLogf(lvl, fmt.Sprint(first)+strings.Repeat(" %v", len(args)), args...)
 		return errors.New(fmt.Sprint(first) + fmt.Sprintf(strings.Repeat(" %v", len(args)), args...))
 	}
-	return nil
 }
 
 // Utility for error log messages (returns an error for easy function returns) (see Debug() for parameter explanation)
@@ -249,7 +248,6 @@ func Error(arg0 interface{}, args ...interface{}) error {
 		Global.intLogf(lvl, fmt.Sprint(first)+strings.Repeat(" %v", len(args)), args...)
 		return errors.New(fmt.Sprint(first) + fmt.Sprintf(strings.Repeat(" %v", len(args)), args...))
 	}
-	return nil
 }
 
 // Utility for critical log messages (returns an error for easy function returns) (see Debug() for parameter explanation)
@@ -274,5 +272,4 @@ func Critical(arg0 interface{}, args ...interface{}) error {
 		Global.intLogf(lvl, fmt.Sprint(first)+strings.Repeat(" %v", len(args)), args...)
 		return errors.New(fmt.Sprint(first) + fmt.Sprintf(strings.Repeat(" %v", len(args)), args...))
 	}
-	return nil
 }
