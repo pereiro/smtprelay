@@ -469,7 +469,7 @@ To: other@example.com
 Subject: SendMail test
 
 SendMail is working for me.
-`, "\n", "\r\n", -1)))
+`, "\n", "\r\n", -1)), "localhost")
 
 	if err != nil {
 		t.Errorf("%v", err)
@@ -662,33 +662,26 @@ func sendMail(hostPort string) error {
 	auth := PlainAuth("", "", "", host)
 	from := "joe1@example.com"
 	to := []string{"joe2@example.com"}
-	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"))
+	return SendMail(hostPort, auth, from, to, []byte("Subject: test\n\nhowdy!"), "localhost")
 }
 
 // (copied from net/http/httptest)
 // localhostCert is a PEM-encoded TLS cert with SAN IPs
-// "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
-// of ASN.1 time).
+// "127.0.0.1" and "[::1]", valid from 1970 through 2049.
 // generated from src/crypto/tls:
-// go run generate_cert.go  --rsa-bits 512 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+// go run generate_cert.go  --ed25519 --host localhost,127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=700000h
 var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
-MIIBdzCCASOgAwIBAgIBADALBgkqhkiG9w0BAQUwEjEQMA4GA1UEChMHQWNtZSBD
-bzAeFw03MDAxMDEwMDAwMDBaFw00OTEyMzEyMzU5NTlaMBIxEDAOBgNVBAoTB0Fj
-bWUgQ28wWjALBgkqhkiG9w0BAQEDSwAwSAJBAN55NcYKZeInyTuhcCwFMhDHCmwa
-IUSdtXdcbItRB/yfXGBhiex00IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEA
-AaNoMGYwDgYDVR0PAQH/BAQDAgCkMBMGA1UdJQQMMAoGCCsGAQUFBwMBMA8GA1Ud
-EwEB/wQFMAMBAf8wLgYDVR0RBCcwJYILZXhhbXBsZS5jb22HBH8AAAGHEAAAAAAA
-AAAAAAAAAAAAAAEwCwYJKoZIhvcNAQEFA0EAAoQn/ytgqpiLcZu9XKbCJsJcvkgk
-Se6AbGXgSlq+ZCEVo0qIwSgeBqmsJxUu7NCSOwVJLYNEBO2DtIxoYVk+MA==
+MIIBdjCCASigAwIBAgIQbgiTLQw6/HKCS7RY8lpA2zAFBgMrZXAwEjEQMA4GA1UE
+ChMHQWNtZSBDbzAeFw03MDAxMDEwMDAwMDBaFw00OTExMDgxNjAwMDBaMBIxEDAO
+BgNVBAoTB0FjbWUgQ28wKjAFBgMrZXADIQB4Bh28Mxk2i+8l4TCOWne9U71UGRQl
+y6jHxoyYp39moKOBkzCBkDAOBgNVHQ8BAf8EBAMCAoQwEwYDVR0lBAwwCgYIKwYB
+BQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU33abiPTuZdUX1mcUcXjo
+rpEH0Q4wOQYDVR0RBDIwMIIJbG9jYWxob3N0ggtleGFtcGxlLmNvbYcEfwAAAYcQ
+AAAAAAAAAAAAAAAAAAAAATAFBgMrZXADQQDEalb27occGVAj11BVExKrY717fc05
+25N/AzyuT5aXfDWT69BYu5oqddAXwXp5XPBHFUCpdf15BLmc5mQFpcUP
 -----END CERTIFICATE-----`)
 
 // localhostKey is the private key for localhostCert.
-var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIBPAIBAAJBAN55NcYKZeInyTuhcCwFMhDHCmwaIUSdtXdcbItRB/yfXGBhiex0
-0IaLXQnSU+QZPRZWYqeTEbFSgihqi1PUDy8CAwEAAQJBAQdUx66rfh8sYsgfdcvV
-NoafYpnEcB5s4m/vSVe6SU7dCK6eYec9f9wpT353ljhDUHq3EbmE4foNzJngh35d
-AekCIQDhRQG5Li0Wj8TM4obOnnXUXf1jRv0UkzE9AHWLG5q3AwIhAPzSjpYUDjVW
-MCUXgckTpKCuGwbJk7424Nb8bLzf3kllAiA5mUBgjfr/WtFSJdWcPQ4Zt9KTMNKD
-EUO0ukpTwEIl6wIhAMbGqZK3zAAFdq8DD2jPx+UJXnh0rnOkZBzDtJ6/iN69AiEA
-1Aq8MJgTaYsDQWyU/hDq5YkDJc9e9DSCvUIzqxQWMQE=
------END RSA PRIVATE KEY-----`)
+var localhostKey = []byte(`-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIHymDo0uwkYUZTZ4l5slE2wTRWyT3ybrIYORAzIH7o5f
+-----END PRIVATE KEY-----`)

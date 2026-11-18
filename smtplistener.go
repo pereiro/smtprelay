@@ -38,10 +38,10 @@ func (server *StoppableSMTPServer) Start() (err error) {
 		return
 	}
 
+	server.WaitGroup.Add(1)
 	go func() {
-		server.WaitGroup.Add(1)
 		defer server.WaitGroup.Done()
-		err = server.Serve(server.Listener)
+		err := server.Serve(server.Listener)
 		if err != nil {
 			if err != StoppedError {
 				log.Critical("Error while start SMTP server at port %s:%s", conf.ListenPort, err.Error())
@@ -125,18 +125,15 @@ func smtpHandler(peer smtpd.Peer, env smtpd.Envelope) error {
 
 	for domain, _ := range msg.RcptDomains {
 
-		mailServer, err := lookupMailServer(strings.ToLower(domain), 0)
+		mailServers, err := lookupDeliveryServers(domain)
 		if err != nil {
 			log.Error("message %s can't get MX record for %s - %s, DROPPED: %s", msg.String(), domain, err.Error(), ErrDomainNotFound.Error())
 			MailDroppedIncreaseCounter(1)
 			return ErrDomainNotFound
 		}
 
-		if conf.RelayModeEnabled {
-			mailServer = conf.RelayServer
-		}
-
-		entries = append(entries, QueueEntry{MailServer: mailServer,
+		entries = append(entries, QueueEntry{
+			MailServers:     mailServers,
 			Sender:          env.Sender,
 			Recipients:      msg.GetDomainRecipientList(domain),
 			Data:            env.Data,

@@ -1,7 +1,6 @@
 package smtpd_test
 
 import (
-	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -12,30 +11,23 @@ import (
 	"testing"
 	"time"
 
-	"bitbucket.org/chrj/smtpd"
+	"smtprelay/smtpd"
 )
 
 var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
-MIIBkzCCAT+gAwIBAgIQf4LO8+QzcbXRHJUo6MvX7zALBgkqhkiG9w0BAQswEjEQ
-MA4GA1UEChMHQWNtZSBDbzAeFw03MDAxMDEwMDAwMDBaFw04MTA1MjkxNjAwMDBa
-MBIxEDAOBgNVBAoTB0FjbWUgQ28wXDANBgkqhkiG9w0BAQEFAANLADBIAkEAx2Uj
-2nl0ESnMMrdUOwQnpnIPQzQBX9MIYT87VxhHzImOukWcq5DrmN1ZB//diyrgiCLv
-D0udX3YXNHMn1Ki8awIDAQABo3MwcTAOBgNVHQ8BAf8EBAMCAKQwEwYDVR0lBAww
-CgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zA5BgNVHREEMjAwggtleGFtcGxl
-LmNvbYIJbG9jYWxob3N0hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMAsGCSqGSIb3
-DQEBCwNBAGcaB2Il0TIXFcJOdOLGPa6F8qZH1ZHBtVlCBnaJn4vZJGzID+V36Gn0
-hA1AYfGAaF0c43oQofvv+XqQlTe4a+M=
+MIIBdjCCASigAwIBAgIQbgiTLQw6/HKCS7RY8lpA2zAFBgMrZXAwEjEQMA4GA1UE
+ChMHQWNtZSBDbzAeFw03MDAxMDEwMDAwMDBaFw00OTExMDgxNjAwMDBaMBIxEDAO
+BgNVBAoTB0FjbWUgQ28wKjAFBgMrZXADIQB4Bh28Mxk2i+8l4TCOWne9U71UGRQl
+y6jHxoyYp39moKOBkzCBkDAOBgNVHQ8BAf8EBAMCAoQwEwYDVR0lBAwwCgYIKwYB
+BQUHAwEwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQU33abiPTuZdUX1mcUcXjo
+rpEH0Q4wOQYDVR0RBDIwMIIJbG9jYWxob3N0ggtleGFtcGxlLmNvbYcEfwAAAYcQ
+AAAAAAAAAAAAAAAAAAAAATAFBgMrZXADQQDEalb27occGVAj11BVExKrY717fc05
+25N/AzyuT5aXfDWT69BYu5oqddAXwXp5XPBHFUCpdf15BLmc5mQFpcUP
 -----END CERTIFICATE-----`)
 
-var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIIBPAIBAAJBAMdlI9p5dBEpzDK3VDsEJ6ZyD0M0AV/TCGE/O1cYR8yJjrpFnKuQ
-65jdWQf/3Ysq4Igi7w9LnV92FzRzJ9SovGsCAwEAAQJAVaFw2VWJbAmIQUuMJ+Ar
-6wZW2aSO5okpsyHFqSyrQQIcAj/QOq8P83F8J10IreFWNlBlywJU9c7IlJtn/lqq
-AQIhAOxHXOxrKPxqTIdIcNnWye/HRQ+5VD54QQr1+M77+bEBAiEA2AmsNNqj2fKj
-j2xk+4vnBSY0vrb4q/O3WZ46oorawWsCIQDWdpfzx/i11E6OZMR6FinJSNh4w0Gi
-SkjPiCBE0BX+AQIhAI/TiLk7YmBkQG3ovSYW0vvDntPlXpKj08ovJFw4U0D3AiEA
-lGjGna4oaauI0CWI6pG0wg4zklTnrDWK7w9h/S/T4e0=
------END RSA PRIVATE KEY-----`)
+var localhostKey = []byte(`-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIHymDo0uwkYUZTZ4l5slE2wTRWyT3ybrIYORAzIH7o5f
+-----END PRIVATE KEY-----`)
 
 func cmd(c *textproto.Conn, expectedCode int, format string, args ...interface{}) error {
 	id, err := c.Cmd(format, args...)
@@ -870,13 +862,12 @@ func TestXCLIENT(t *testing.T) {
 	}
 }
 
-func TestEnvelopeReceived(t *testing.T) {
+func TestEnvelopeData(t *testing.T) {
 	addr, closer := runsslserver(t, &smtpd.Server{
 		Hostname: "foobar.example.net",
 		Handler: func(peer smtpd.Peer, env smtpd.Envelope) error {
-			env.AddReceivedLine(peer)
-			if !bytes.HasPrefix(env.Data, []byte("Received: from localhost [127.0.0.1] by foobar.example.net with ESMTP;")) {
-				t.Fatal("Wrong received line.")
+			if string(env.Data) != "This is the email body\n" {
+				t.Errorf("Wrong envelope data: %q", env.Data)
 			}
 			return nil
 		},

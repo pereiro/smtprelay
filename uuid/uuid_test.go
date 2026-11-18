@@ -2,7 +2,7 @@ package uuid_test
 
 import (
 	"fmt"
-	"github.com/twinj/uuid"
+	"smtprelay/uuid"
 	"testing"
 	"time"
 )

@@ -105,7 +105,6 @@ func TestUUID_NewBulk(t *testing.T) {
 	}
 }
 
-
 const (
 	clean                   = `[A-Fa-f0-9]{8}[A-Fa-f0-9]{4}[1-5fF][A-Fa-f0-9]{3}[A-Fa-f0-9]{4}[A-Fa-f0-9]{12}`
 	cleanHexPattern         = `^` + clean + `$`
@@ -444,6 +443,6 @@ func outputLn(a ...interface{}) {
 
 func outputF(format string, a ...interface{}) {
 	if printer {
-		fmt.Printf(format, a)
+		fmt.Printf(format, a...)
 	}
 }

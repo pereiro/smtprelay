@@ -4,3 +4,4 @@ logconfig.xml
 dkim_keys/*
 smtprelay
 .idea/
+build/*/bin/

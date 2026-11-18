@@ -50,7 +50,7 @@ func NewSocketLogWriter(proto, hostport string) SocketLogWriter {
 						continue
 					}
 				} else {
-					fmt.Fprint(os.Stderr, "SocketLogWriter(%s): %s", hostport, err)
+					fmt.Fprintf(os.Stderr, "SocketLogWriter(%s): %s", hostport, err)
 					continue
 				}
 			}

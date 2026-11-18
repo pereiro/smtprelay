@@ -4,9 +4,11 @@
 
 // Package smtp implements the Simple Mail Transfer Protocol as defined in RFC 5321.
 // It also implements the following extensions:
+//
 //	8BITMIME  RFC 1652
 //	AUTH      RFC 2554
 //	STARTTLS  RFC 3207
+//
 // Additional extensions may be handled by clients.
 package smtp
 
@@ -18,6 +20,7 @@ import (
 	"net"
 	"net/textproto"
 	"strings"
+	"time"
 )
 
 // A Client represents a client connection to an SMTP server.
@@ -247,7 +250,9 @@ type dataCloser struct {
 }
 
 func (d *dataCloser) Close() error {
-	d.WriteCloser.Close()
+	if err := d.WriteCloser.Close(); err != nil {
+		return err
+	}
 	_, _, err := d.c.Text.ReadResponse(250)
 	return err
 }
@@ -271,11 +276,29 @@ var testHookStartTLS func(*tls.Config) // nil, except for tests
 // and then sends an email from address from, to addresses to, with
 // message msg.
 func SendMail(addr string, a Auth, from string, to []string, msg []byte, host string) error {
-	c, err := Dial(addr)
+	return SendMailWithTimeout(addr, a, from, to, msg, host, 30*time.Second)
+}
+
+// SendMailWithTimeout is SendMail with a timeout covering the connection and
+// the entire SMTP exchange, including the server greeting and TLS handshake.
+func SendMailWithTimeout(addr string, a Auth, from string, to []string, msg []byte, host string, timeout time.Duration) error {
+	if timeout <= 0 {
+		return errors.New("smtp: timeout must be positive")
+	}
+	deadline := time.Now().Add(timeout)
+	conn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
 		return err
 	}
-	defer c.Close()
+	defer conn.Close()
+	if err := conn.SetDeadline(deadline); err != nil {
+		return err
+	}
+	server, _, _ := net.SplitHostPort(addr)
+	c, err := NewClient(conn, server)
+	if err != nil {
+		return err
+	}
 	c.localName = host
 	if err = c.hello(); err != nil {
 		return err
@@ -320,7 +343,10 @@ func SendMail(addr string, a Auth, from string, to []string, msg []byte, host st
 	if err != nil {
 		return err
 	}
-	return c.Quit()
+	// DATA was accepted. A failed QUIT must not cause duplicate delivery via
+	// another MX or a later queue attempt.
+	c.Quit()
+	return nil
 }
 
 // Extension reports whether an extension is support by the server.

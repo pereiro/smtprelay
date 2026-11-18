@@ -16,7 +16,7 @@ var (
 )
 
 type QueueEntry struct {
-	MailServer      string
+	MailServers     []string
 	Sender          string
 	Recipients      []string
 	SenderDomain    string
